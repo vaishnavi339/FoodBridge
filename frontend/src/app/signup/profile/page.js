@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FiMapPin, FiCrosshair } from 'react-icons/fi';
 import Stepper from '../components/Stepper';
 
 const TOP_CITIES = [
@@ -25,8 +26,12 @@ export default function SignupProfile() {
     mission: '', // Donor only
     serviceAreas: [], // NGO only
     capacity: 50, // NGO only
-    profilePhoto: null
+    profilePhoto: null,
+    latitude: null,
+    longitude: null
   });
+  
+  const [detecting, setDetecting] = useState(false);
   
   const [citySearch, setCitySearch] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
@@ -96,6 +101,26 @@ export default function SignupProfile() {
       ...prev,
       capacity: Math.max(0, prev.capacity + amount)
     }));
+  };
+
+  const detectLocation = () => {
+    setDetecting(true);
+    if (!navigator.geolocation) {
+      alert('Geolocation not supported');
+      setDetecting(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setFormData(prev => ({ ...prev, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
+        setDetecting(false);
+        toast.success('Location detected!');
+      },
+      () => {
+        alert('Could not detect location');
+        setDetecting(false);
+      }
+    );
   };
 
   const handleFileUpload = (e) => {
@@ -264,6 +289,28 @@ export default function SignupProfile() {
                   className="w-full bg-[#0d1117] border border-[#21262d] focus:border-slate-400 px-4 py-2.5 rounded-xl text-white outline-none transition-colors resize-none"
                   placeholder="Street address, block, area..."
                 />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-[#0d1117] border border-[#21262d] rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.latitude ? 'bg-[#1D9E75]/10 text-[#1D9E75]' : 'bg-slate-800 text-slate-500'}`}>
+                    <FiMapPin size={20} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-300">Coordinates</div>
+                    <div className="text-[10px] text-slate-500">
+                      {formData.latitude ? `${formData.latitude.toFixed(4)}, ${formData.longitude.toFixed(4)}` : 'Location not set'}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={detectLocation}
+                  disabled={detecting}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#21262d] hover:bg-[#30363d] rounded-lg text-xs font-bold text-slate-300 transition-all border border-[#30363d]"
+                >
+                  <FiCrosshair className={detecting ? 'animate-spin' : ''} />
+                  {detecting ? 'Detecting...' : formData.latitude ? 'Redetect' : 'Detect GPS'}
+                </button>
               </div>
             </div>
 

@@ -188,4 +188,28 @@ router.get('/listings', auth, roleCheck('admin'), async (req, res) => {
   }
 });
 
+const MatchingEngine = require('../services/matchingEngine');
+
+// GET /api/admin/listings/:id/matches - Get smart match suggestions for a listing
+router.get('/listings/:id/matches', auth, roleCheck('admin'), async (req, res) => {
+  try {
+    const listing = await FoodListing.findByPk(req.params.id);
+    if (!listing) return res.status(404).json({ error: 'Listing not found' });
+
+    const receivers = await User.findAll({ where: { role: 'receiver', isActive: true, isVerified: true } });
+    const matches = receivers.map(receiver => {
+      const scores = MatchingEngine.calculateMatchScore(listing, receiver);
+      return { 
+        id: receiver.id, 
+        name: receiver.orgName || receiver.name, 
+        ...scores 
+      };
+    }).sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
+
+    res.json({ matches });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to find matches' });
+  }
+});
+
 module.exports = router;

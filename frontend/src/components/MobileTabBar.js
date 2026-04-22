@@ -14,7 +14,7 @@ export default function MobileTabBar() {
   const tabs = [
     { path: '/donor/dashboard', label: 'Home', Icon: FiHome },
     { path: '/map', label: 'Live Map', Icon: FiMapPin },
-    { path: '/donor/donate', label: 'Donate', Icon: FiPlusCircle, center: true },
+    { path: '/donor/create-listing', label: 'Donate', Icon: FiPlusCircle, center: true },
     { path: '/volunteer/dashboard', label: 'Tasks', Icon: FiClipboard },
     { path: '/signup', label: 'Profile', Icon: FiUser }
   ];

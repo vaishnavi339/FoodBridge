@@ -100,7 +100,7 @@ class FoodPredictionModel:
         self.is_trained = False
     
     def train(self):
-        print("🤖 Training prediction models...")
+        print("[ML] Training prediction models...")
         df = generate_training_data(3000)
         
         # Encode categorical features
@@ -125,9 +125,9 @@ class FoodPredictionModel:
         
         # Calculate accuracy
         demand_accuracy = self.demand_model.score(X, y_demand)
-        print(f"✅ Demand model accuracy: {demand_accuracy:.2%}")
-        print(f"✅ Spoilage model trained")
-        print(f"✅ Models ready for predictions")
+        print(f"Demand model accuracy: {demand_accuracy:.2%}")
+        print(f"Spoilage model trained")
+        print(f"Models ready for predictions")
     
     def predict_demand(self, food_type, area, day_of_week=None, hour=None, temperature=None):
         if not self.is_trained:
@@ -306,10 +306,10 @@ def predict_batch():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     print(f"""
-╔═══════════════════════════════════════════════╗
-║     🤖 Food Prediction ML Service             ║
-║     🚀 Running on port {port}                    ║
-║     📊 Models: Demand + Spoilage + Urgency     ║
-╚═══════════════════════════════════════════════╝
+*************************************************
+*     Food Prediction ML Service                *
+*     Running on port {port}                    *
+*     Models: Demand + Spoilage + Urgency       *
+*************************************************
     """)
     app.run(host='0.0.0.0', port=port, debug=True)

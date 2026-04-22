@@ -197,106 +197,282 @@ export default function ReceiverDashboard() {
           </div>
         )}
 
-        {/* Top bar */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Discover food near you</h1>
-          <div className="flex items-center gap-4 scroll-row w-full md:w-auto">
-            {/* Radius slider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="shrink-0 bg-[#161b22] px-3 py-1.5 rounded-lg border border-[#21262d]">
-              <FiCompass size={14} style={{ color: C.muted }} />
-              <input type="range" min="5" max="50" value={radiusKm} onChange={e => setRadiusKm(parseInt(e.target.value))} style={{ width: 100, accentColor: C.accent }} />
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: C.accent, minWidth: 40 }}>{radiusKm} km</span>
+        {/* ─── Render Content Based on Active Tab ─── */}
+        {activeTab === 'discover' && (
+          <>
+            {/* Top bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4 animate-fade-in">
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Discover food near you</h1>
+              <div className="flex items-center gap-4 scroll-row w-full md:w-auto">
+                {/* Radius slider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="shrink-0 bg-[#161b22] px-3 py-1.5 rounded-lg border border-[#21262d]">
+                  <FiCompass size={14} style={{ color: C.muted }} />
+                  <input type="range" min="5" max="50" value={radiusKm} onChange={e => setRadiusKm(parseInt(e.target.value))} style={{ width: 100, accentColor: C.accent }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: C.accent, minWidth: 40 }}>{radiusKm} km</span>
+                </div>
+                {/* Sort */}
+                <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="shrink-0" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: C.text, fontSize: '0.8rem', cursor: 'pointer' }}>
+                  <option value="nearest">Nearest</option>
+                  <option value="urgent">Most urgent</option>
+                  <option value="quantity">Largest quantity</option>
+                  <option value="match">Best match</option>
+                </select>
+              </div>
             </div>
-            {/* Sort */}
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="shrink-0" style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: '0.5rem', padding: '0.4rem 0.6rem', color: C.text, fontSize: '0.8rem', cursor: 'pointer' }}>
-              <option value="nearest">Nearest</option>
-              <option value="urgent">Most urgent</option>
-              <option value="quantity">Largest quantity</option>
-              <option value="match">Best match</option>
-            </select>
-          </div>
-        </div>
 
-        {/* Food Cards Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map(i => <div key={i} className="shimmer" style={{ height: 200, borderRadius: '0.75rem' }} />)}
-          </div>
-        ) : sorted.length === 0 ? (
-          /* Empty state */
-          <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-            <div style={{ width: 80, height: 80, borderRadius: '50%', background: C.cardBg, border: `2px dashed ${C.border}`, margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🔍</div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem' }}>No food available in your area right now</h2>
-            <p style={{ fontSize: '0.85rem', color: C.muted, marginBottom: '1.5rem' }}>Expand your radius or check back soon</p>
-            <button onClick={() => setRadiusKm(50)} style={{ background: C.accent, color: '#fff', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>Expand radius to 50 km</button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {sorted.map((listing, idx) => {
-              const urg = getUrgency(listing._hrs);
-              const matchColor = listing._match >= 80 ? C.accent : listing._match >= 60 ? C.amber : C.muted;
-              return (
-                <div key={listing.id} className="animate-fade-in" style={{
-                  background: C.cardBg, border: `0.5px solid ${C.border}`, borderRadius: '0.75rem',
-                  overflow: 'hidden', transition: 'border-color 0.2s', animationDelay: `${idx * 0.05}s`,
-                }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}66`}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
-                >
-                  {/* Top strip */}
-                  <div style={{ height: 4, background: urg.strip }} />
-                  <div className="p-3 md:p-4">
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '1.4rem' }}>{foodEmoji(listing.foodType)}</span>
-                        <div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff' }}>{listing.title}</div>
-                          <div style={{ fontSize: '0.7rem', color: C.muted, marginTop: '0.1rem' }}>
-                            {listing.donor?.orgName || 'Donor'} {listing.donor?.rating >= 4.5 && <span style={{ color: C.accent }}>✓</span>}
+            {/* Food Cards Grid */}
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => <div key={i} className="shimmer" style={{ height: 200, borderRadius: '0.75rem' }} />)}
+              </div>
+            ) : sorted.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: C.cardBg, border: `2px dashed ${C.border}`, margin: '0 auto 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🔍</div>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '0.5rem' }}>No food available in your area right now</h2>
+                <p style={{ fontSize: '0.85rem', color: C.muted, marginBottom: '1.5rem' }}>Expand your radius or check back soon</p>
+                <button onClick={() => setRadiusKm(50)} style={{ background: C.accent, color: '#fff', border: 'none', padding: '0.6rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, cursor: 'pointer' }}>Expand radius to 50 km</button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {sorted.map((listing, idx) => {
+                  const urg = getUrgency(listing._hrs);
+                  const matchColor = listing._match >= 80 ? C.accent : listing._match >= 60 ? C.amber : C.muted;
+                  return (
+                    <div key={listing.id} className="animate-fade-in" style={{
+                      background: C.cardBg, border: `0.5px solid ${C.border}`, borderRadius: '0.75rem',
+                      overflow: 'hidden', transition: 'border-color 0.2s', animationDelay: `${idx * 0.05}s`,
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = `${C.accent}66`}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+                    >
+                      <div style={{ height: 4, background: urg.strip }} />
+                      <div className="p-3 md:p-4">
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '1.4rem' }}>{foodEmoji(listing.foodType)}</span>
+                            <div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#fff' }}>{listing.title}</div>
+                              <div style={{ fontSize: '0.7rem', color: C.muted, marginTop: '0.1rem' }}>
+                                {listing.donor?.orgName || 'Donor'} {listing.donor?.rating >= 4.5 && <span style={{ color: C.accent }}>✓</span>}
+                              </div>
+                            </div>
                           </div>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', background: `${matchColor}1a`, color: matchColor, border: `1px solid ${matchColor}33` }}>
+                            {listing._match}% match
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
+                          {[
+                            { icon: <FiPackage size={11} />, text: `${listing.quantity} ${listing.unit}`, color: C.text },
+                            { icon: <FiMapPin size={11} />, text: `${listing._dist.toFixed(1)} km`, color: C.blue },
+                            { icon: <FiClock size={11} />, text: urg.label, color: urg.color },
+                          ].map((chip, ci) => (
+                            <span key={ci} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '9999px', background: `${C.border}88`, color: chip.color }}>
+                              {chip.icon} {chip.text}
+                            </span>
+                          ))}
+                        </div>
+                        {listing.description && (
+                          <p style={{ fontSize: '0.75rem', color: C.muted, lineHeight: 1.4, marginBottom: '0.75rem', lineClamp: 2 }}>
+                            {listing.description}
+                          </p>
+                        )}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <Link href={`/tracking/${listing.id}`} style={{ textDecoration: 'none', flex: 1, textAlign: 'center', padding: '0.5rem', borderRadius: '0.5rem', border: `1px solid ${C.border}`, color: C.text, fontSize: '0.8rem', fontWeight: 500 }}>
+                            View details
+                          </Link>
+                          <button onClick={() => { setClaimModal(listing); setClaimSuccess(false); }} style={{ flex: 1, background: C.accent, color: '#fff', border: 'none', padding: '0.5rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                            Claim now
+                          </button>
                         </div>
                       </div>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', background: `${matchColor}1a`, color: matchColor, border: `1px solid ${matchColor}33` }}>
-                        {listing._match}% match
-                      </span>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
 
-                    {/* Info chips */}
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.6rem', flexWrap: 'wrap' }}>
-                      {[
-                        { icon: <FiPackage size={11} />, text: `${listing.quantity} ${listing.unit}`, color: C.text },
-                        { icon: <FiMapPin size={11} />, text: `${listing._dist.toFixed(1)} km`, color: C.blue },
-                        { icon: <FiClock size={11} />, text: urg.label, color: urg.color },
-                      ].map((chip, ci) => (
-                        <span key={ci} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '9999px', background: `${C.border}88`, color: chip.color }}>
-                          {chip.icon} {chip.text}
-                        </span>
-                      ))}
-                    </div>
+        {activeTab === 'claims' && (
+          <div className="animate-fade-in">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>My Food Claims</h1>
+              <button onClick={fetchData} style={{ background: 'transparent', border: `1px solid ${C.border}`, color: C.muted, padding: '0.4rem 0.8rem', borderRadius: '0.5rem', fontSize: '0.8rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <FiClock size={14} /> Refresh
+              </button>
+            </div>
 
-                    {/* Description */}
-                    {listing.description && (
-                      <p style={{ fontSize: '0.75rem', color: C.muted, lineHeight: 1.4, marginBottom: '0.75rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {listing.description}
-                      </p>
-                    )}
-
-                    {/* Actions */}
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <Link href={`/tracking/${listing.id}`} style={{ textDecoration: 'none', flex: 1, textAlign: 'center', padding: '0.5rem', borderRadius: '0.5rem', border: `1px solid ${C.border}`, color: C.text, fontSize: '0.8rem', fontWeight: 500, transition: 'all 0.15s' }}>
-                        View details
-                      </Link>
-                      <button onClick={() => { setClaimModal(listing); setClaimSuccess(false); }} style={{ flex: 1, background: C.accent, color: '#fff', border: 'none', padding: '0.5rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
-                        Claim now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {claims.length === 0 ? (
+              <div style={{ ...sideCard, textAlign: 'center', padding: '4rem' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📋</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>No claims yet</h3>
+                <p style={{ fontSize: '0.85rem', color: C.muted }}>Browse available food to start making claims.</p>
+              </div>
+            ) : (
+              <div style={sideCard}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${C.border}`, textAlign: 'left' }}>
+                      <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: C.muted }}>Item & Donor</th>
+                      <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: C.muted }}>Status</th>
+                      <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: C.muted }}>Date</th>
+                      <th style={{ padding: '0.75rem 0.5rem', fontSize: '0.8rem', color: C.muted, textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {claims.map(claim => (
+                      <tr key={claim.id} style={{ borderBottom: `1px solid ${C.border}44` }}>
+                        <td style={{ padding: '1rem 0.5rem' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{claim.listing?.title}</div>
+                          <div style={{ fontSize: '0.75rem', color: C.muted }}>{claim.listing?.donor?.orgName}</div>
+                        </td>
+                        <td style={{ padding: '1rem 0.5rem' }}>
+                          <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', background: claim.status === 'delivered' ? `${C.accent}1a` : `${C.blue}1a`, color: claim.status === 'delivered' ? C.accent : C.blue }}>
+                            {claim.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: C.muted }}>
+                          {new Date(claim.createdAt).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
+                          <Link href={`/tracking/${claim.listingId}`} style={{ fontSize: '0.75rem', color: C.accent, textDecoration: 'none', fontWeight: 600 }}>
+                            Trace Delivery →
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
+
+        {activeTab === 'tracking' && (
+          <div className="animate-fade-in">
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Active Deliveries</h1>
+            <div className="grid grid-cols-1 gap-4">
+              {claims.filter(c => ['approved', 'picked_up', 'in_transit'].includes(c.status)).length === 0 ? (
+                <div style={{ ...sideCard, textAlign: 'center', padding: '4rem' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🚚</div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>No active deliveries</h3>
+                  <p style={{ fontSize: '0.85rem', color: C.muted }}>Claim items to see their tracking status here.</p>
+                </div>
+              ) : (
+                claims.filter(c => ['approved', 'picked_up', 'in_transit'].includes(c.status)).map(claim => (
+                  <div key={claim.id} style={sideCard}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                      <div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{claim.listing?.title}</h3>
+                        <p style={{ fontSize: '0.8rem', color: C.muted }}>Tracking ID: {claim.id.split('-')[0].toUpperCase()}</p>
+                      </div>
+                      <span style={{ color: C.accent, fontWeight: 700, fontSize: '0.85rem' }}>{claim.status.replace('_', ' ').toUpperCase()}</span>
+                    </div>
+                    {/* Status bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                      {['approved', 'picked_up', 'in_transit', 'delivered'].map((step, idx) => {
+                        const statusOrder = ['approved', 'picked_up', 'in_transit', 'delivered'];
+                        const currentIdx = statusOrder.indexOf(claim.status);
+                        const isDone = idx <= currentIdx;
+                        return (
+                          <div key={step} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <div style={{ height: 4, flex: 1, background: isDone ? C.accent : C.border, borderRadius: 2 }} />
+                            {idx === 3 && <FiCheckCircle size={14} style={{ color: isDone ? C.accent : C.muted }} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FiTruck style={{ color: C.blue }} />
+                        <span style={{ fontSize: '0.8rem', color: C.muted }}>Eta: 25 mins</span>
+                      </div>
+                      <Link href={`/tracking/${claim.listingId}`} style={{ background: C.accent, color: '#fff', textDecoration: 'none', padding: '0.4rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600 }}>Open Map</Link>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'community' && (
+          <div className="animate-fade-in">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Community Needs</h1>
+              <button style={{ background: C.accent, color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>+ Post A Need</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              {[
+                { label: 'Urgent Requests', val: '2', color: C.red },
+                { label: 'Active Needs', val: '14', color: C.amber },
+                { label: 'Needs Fulfilled', val: '128', color: C.accent },
+              ].map((s, i) => (
+                <div key={i} style={sideCard}>
+                  <p style={{ fontSize: '0.7rem', color: C.muted, textTransform: 'uppercase', marginBottom: '0.4rem' }}>{s.label}</p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{s.val}</p>
+                </div>
+              ))}
+            </div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Live Needs Feed</h3>
+            <div style={sideCard}>
+              {[
+                { org: 'Hope Shelter', type: 'Dairy & Milk', qty: '15 liters', time: '2h ago', status: 'urgent' },
+                { org: 'Annapurna Trust', type: 'Rice & Dal', qty: '50kg', time: '5h ago', status: 'standard' },
+                { org: 'City NGO', type: 'Packaged Snacks', qty: '200 units', time: '1d ago', status: 'standard' },
+              ].map((need, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 0', borderBottom: i < 2 ? `1px solid ${C.border}44` : 'none' }}>
+                  <div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{need.org} needs {need.type}</div>
+                    <div style={{ fontSize: '0.75rem', color: C.muted }}>{need.qty} • Posted {need.time}</div>
+                  </div>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', background: need.status === 'urgent' ? `${C.red}1a` : `${C.blue}1a`, color: need.status === 'urgent' ? C.red : C.blue }}>
+                    {need.status.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="animate-fade-in" style={{ maxWidth: 600 }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Account Settings</h1>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={sideCard}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem' }}>Organization Profile</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {[
+                    { label: 'Organization Name', val: user?.orgName },
+                    { label: 'Admin Email', val: user?.email },
+                    { label: 'Mobile Number', val: user?.phone || '+91 9876543210' },
+                  ].map((f, i) => (
+                    <div key={i}>
+                      <p style={{ fontSize: '0.7rem', color: C.muted, marginBottom: '0.25rem' }}>{f.label}</p>
+                      <input readOnly value={f.val || ''} style={{ width: '100%', background: C.pageBg, border: `1px solid ${C.border}`, borderRadius: '0.4rem', padding: '0.5rem', color: C.text, fontSize: '0.85rem' }} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={sideCard}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem' }}>Preferences</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0' }}>
+                  <span style={{ fontSize: '0.85rem' }}>Email Notifications</span>
+                  <div style={{ width: 40, height: 22, borderRadius: 11, background: C.accent, position: 'relative' }}><div style={{ width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', right: 2, top: 2 }} /></div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0' }}>
+                  <span style={{ fontSize: '0.85rem' }}>Mobile Alerts</span>
+                  <div style={{ width: 40, height: 22, borderRadius: 11, background: C.border, position: 'relative' }}><div style={{ width: 18, height: 18, borderRadius: 9, background: C.muted, position: 'absolute', left: 2, top: 2 }} /></div>
+                </div>
+              </div>
+
+              <button style={{ background: `${C.red}1a`, color: C.red, border: `1px solid ${C.red}33`, padding: '0.75rem', borderRadius: '0.50rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>Delete Account</button>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* ─── Claim Confirmation Modal ─── */}

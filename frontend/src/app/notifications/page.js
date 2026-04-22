@@ -51,7 +51,7 @@ export default function NotificationCenter() {
 
   const markAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? {...n, unread: false} : n));
-    try { await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' }); } catch(e) {}
+    try { await fetch(`/api/notifications/${id}/read`, { method: 'PUT' }); } catch(e) {}
   };
 
   const handleNotificationClick = (notification) => {
@@ -74,8 +74,13 @@ export default function NotificationCenter() {
 
   const markSelectedRead = async () => {
     setNotifications(prev => prev.map(n => selectedIds.has(n.id) ? {...n, unread: false} : n));
-    setSelectedIds(newSet => new Set());
-    try { await fetch(`/api/notifications/bulk-read`, { method: 'POST', body: JSON.stringify({ids: Array.from(selectedIds)}) }); } catch(e) {}
+    const idsToMark = Array.from(selectedIds);
+    setSelectedIds(new Set());
+    // Backend doesn't have bulk-read, so we loop or update backend. 
+    // For now, let's use the read-all if all are selected, or loop.
+    try { 
+      await Promise.all(idsToMark.map(id => fetch(`/api/notifications/${id}/read`, { method: 'PUT' })));
+    } catch(e) {}
   };
 
   const deleteSelected = async () => {
@@ -116,7 +121,10 @@ export default function NotificationCenter() {
           <div className="p-4 md:p-6 flex justify-between items-center md:items-start md:flex-col gap-2">
             <h1 className="text-lg font-bold text-white desktop-only">Notifications</h1>
             <button 
-              onClick={() => setNotifications(prev => prev.map(n => ({...n, unread: false})))}
+              onClick={async () => {
+                setNotifications(prev => prev.map(n => ({...n, unread: false})));
+                try { await fetch('/api/notifications/read-all', { method: 'PUT' }); } catch(e) {}
+              }}
               className="text-xs text-slate-400 hover:text-white transition-colors desktop-only text-right w-full"
             >
               Mark all as read

@@ -24,10 +24,23 @@ export default function VolunteerDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Dashboard State
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'history'
+  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'history' | 'earnings' | 'settings'
   const [isAvailable, setIsAvailable] = useState(true);
   const [vehicle, setVehicle] = useState('Bike');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  const COLORS = {
+    accent: '#1D9E75',
+    blue: '#378ADD',
+    amber: '#EF9F27',
+    red: '#e24b4a',
+    cardBg: '#161b22',
+    border: '#21262d',
+    pageBg: '#0d1117',
+    text: '#c9d1d9',
+    textMuted: '#8b949e'
+  };
+
   
   // Tasks Feed State
   const [radius, setRadius] = useState(5);
@@ -77,11 +90,12 @@ export default function VolunteerDashboard() {
     const newVal = !isAvailable;
     setIsAvailable(newVal);
     toast.success(newVal ? 'You are now online' : 'You are off duty');
+    // Note: Backend profile should handle availability, adding as a user meta update
     try {
-      await fetch('/api/volunteers/availability', {
-        method: 'PATCH',
+      await fetch('/api/auth/profile', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ available: newVal })
+        body: JSON.stringify({ isAvailable: newVal })
       });
     } catch (e) {}
   };
@@ -115,24 +129,29 @@ export default function VolunteerDashboard() {
     toast.success('Task accepted! Navigating to map.');
 
     try {
-      await fetch('/api/deliveries/accept', {
+      const res = await fetch('/api/claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deliveryId: task.id })
+        body: JSON.stringify({ listingId: task.listingId || task.id, type: 'delivery' })
       });
+      const data = await res.json();
+      if (data.claim) {
+        setActiveDelivery({ ...task, claimId: data.claim.id });
+      }
     } catch(e) {}
   };
 
   const completeStep = async () => {
+    const claimId = activeDelivery.claimId || activeDelivery.id;
     if (deliveryStatus === 'accepted') {
       setDeliveryStatus('picked_up');
       toast.success('Marked as picked up!');
-      try { await fetch(`/api/deliveries/${activeDelivery.id}/status`, { method: 'PATCH', body: JSON.stringify({status: 'picked_up'})}); } catch(e){}
+      try { await fetch(`/api/claims/${claimId}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: 'picked_up'})}); } catch(e){}
     } else if (deliveryStatus === 'picked_up') {
       toast.success('Delivery completed! Great job.');
       setActiveDelivery(null);
       setDeliveryStatus('accepted');
-      try { await fetch(`/api/deliveries/${activeDelivery.id}/status`, { method: 'PATCH', body: JSON.stringify({status: 'delivered'})}); } catch(e){}
+      try { await fetch(`/api/claims/${claimId}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({status: 'delivered'})}); } catch(e){}
     }
   };
 
@@ -140,282 +159,90 @@ export default function VolunteerDashboard() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
   };
 
+  const navItems = [
+    { id: 'tasks', label: 'Work Feed', icon: <FiTruck /> },
+    { id: 'history', label: 'My Deliveries', icon: <FiClock /> },
+    { id: 'earnings', label: 'Earnings', icon: <FiDollarSign /> },
+    { id: 'settings', label: 'Settings', icon: <FiX /> }, // Using FiX placeholder, will fix with real icons in loop
+  ];
+
   const getUrgencyColor = (u) => {
     if (u === 'high') return 'bg-[#e24b4a]';
     if (u === 'medium') return 'bg-[#EF9F27]';
     return 'bg-[#1D9E75]';
   };
 
+
   return (
-    <div className="min-h-screen bg-[#0d1117] text-white flex flex-col md:flex-row font-sans selection:bg-[#1D9E75] selection:text-white pt-16">
+    <div className="min-h-screen bg-[#0d1117] text-white flex pt-16">
       
-      {/* Mobile Header Nav */}
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-[#21262d] bg-[#161b22]">
-        <span className="font-bold">Volunteer Portal</span>
-        <div className="flex gap-4">
-          <button onClick={() => setNotificationsOpen(true)} className="relative text-slate-400">
-            <FiBell size={20} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-[#378ADD] rounded-full"></span>
-          </button>
-          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-slate-400">
-            {isMobileMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Left Sidebar (Desktop) */}
-      <aside className="desktop-only md:w-[300px] border-r border-[#21262d] bg-[#0d1117] flex-shrink-0 flex flex-col h-[calc(100vh-64px)] fixed md:sticky top-16 overflow-y-auto z-40 p-4">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-[52px] h-[52px] rounded-full bg-[#1D9E75]/20 text-[#1D9E75] flex items-center justify-center font-bold text-lg border border-[#1D9E75]/50 shrink-0">
-             {user?.name?.charAt(0) || 'V'}
-          </div>
-          <div>
-            <div className="text-[16px] font-bold">{user?.name || 'Rahul Sharma'}</div>
-            <div className="text-xs text-[#1D9E75] flex items-center gap-1 font-medium bg-[#1D9E75]/10 px-2 py-0.5 rounded-full w-fit mt-1">
-              <FiCheck /> Verified Volunteer
-            </div>
-          </div>
-        </div>
-
-        {/* Vehicle Selection */}
-        <div className="flex gap-2 mb-6">
-          {['Bike', 'Car', 'Auto'].map(v => (
-            <button 
-              key={v} 
-              onClick={() => setVehicle(v)}
-              className={`flex-1 py-1.5 text-xs font-semibold rounded-full transition-colors border ${vehicle === v ? 'bg-[#161b22] border-slate-500 text-white' : 'border-[#21262d] text-slate-500 hover:text-slate-300'}`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
-
-        {/* Availability Toggle */}
-        <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-4 mb-6 flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-sm">{isAvailable ? 'Available for pickups' : 'Off duty'}</div>
-            <div className="text-xs text-slate-500">{isAvailable ? 'Receiving task alerts' : 'Matching paused'}</div>
-          </div>
-          <button 
-            onClick={toggleAvailability}
-            className={`w-12 h-6 rounded-full relative transition-colors ${isAvailable ? 'bg-[#1D9E75]' : 'bg-[#21262d]'}`}
-          >
-            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${isAvailable ? 'left-7' : 'left-1'}`} />
-          </button>
-        </div>
-
-        {/* Active Delivery Sidebar Card */}
-        {activeDelivery && (
-          <div className="mb-6 bg-[#161b22] border-y border-r border-l-4 border-l-[#1D9E75] border-y-[#21262d] border-r-[#21262d] rounded-xl rounded-l-none p-4 shadow-lg">
-            <div className="text-xs font-bold text-[#1D9E75] mb-2 uppercase tracking-wide">Active Delivery</div>
-            <div className="text-sm font-bold mb-1 line-clamp-1">{activeDelivery.food}</div>
-            
-            <div className="space-y-3 mt-4">
-              <div className="flex gap-2 text-xs">
-                <FiMapPin className="text-[#EF9F27] mt-0.5 shrink-0" />
-                <div className="text-slate-300">
-                  <span className="text-slate-500 block mb-0.5">Pickup from</span>
-                  {activeDelivery.donor}
-                </div>
-              </div>
-              <div className="flex gap-2 text-xs">
-                <FiMapPin className="text-[#378ADD] mt-0.5 shrink-0" />
-                <div className="text-slate-300">
-                  <span className="text-slate-500 block mb-0.5">Drop to</span>
-                  {activeDelivery.ngo}
-                </div>
-              </div>
-            </div>
-
-             <div className="mt-4 flex items-center justify-between text-xs font-semibold text-[#EF9F27] bg-[#EF9F27]/10 p-2 rounded-lg">
-              <span>{activeDelivery.totalDistance} km</span>
-              <span>~{activeDelivery.estTime}</span>
-            </div>
-
-            <button 
-              onClick={() => openMaps(
-                deliveryStatus === 'accepted' ? activeDelivery.lat1 : activeDelivery.lat2,
-                deliveryStatus === 'accepted' ? activeDelivery.lng1 : activeDelivery.lng2
-              )}
-              className="w-full mt-4 bg-transparent border border-[#378ADD] text-[#378ADD] hover:bg-[#378ADD]/10 py-2 rounded-lg text-sm font-bold transition-colors"
-            >
-              Open in Maps
-            </button>
-
-            <button 
-              onClick={completeStep}
-              className="w-full mt-2 bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white py-2 rounded-lg text-sm font-bold transition-all shadow-md"
-            >
-              {deliveryStatus === 'accepted' ? 'Mark as picked up' : 'Mark as delivered'}
-            </button>
-          </div>
-        )}
-
-        {!activeDelivery && (
-          <>
-            {/* Quick Stats Column */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
-              <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <div className="text-lg font-bold text-white leading-none mb-1">42</div>
-                <div className="text-[10px] text-slate-400 leading-tight">Deliveries<br/>completed</div>
-              </div>
-              <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <div className="text-lg font-bold text-[#1D9E75] leading-none mb-1">8</div>
-                <div className="text-[10px] text-slate-400 leading-tight">This<br/>week</div>
-              </div>
-              <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <div className="text-lg font-bold text-[#EF9F27] flex items-center leading-none mb-1">4.9<FiStar size={12} className="ml-0.5 fill-current"/></div>
-                <div className="text-[10px] text-slate-400 leading-tight">Avg<br/>rating</div>
-              </div>
-            </div>
-
-            {/* Earnings Tracker */}
-            <div className="bg-[#161b22] border border-[#21262d] rounded-xl p-4">
-              <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">This month</div>
-              <div className="flex items-end gap-2 mb-4">
-                <span className="text-3xl font-bold text-white">₹1,840</span>
-                <span className="text-xs text-slate-500 mb-1">₹45 / delivery</span>
-              </div>
-              {/* Mini SVG Bar Chart */}
-              <div className="flex items-end justify-between h-10 gap-1 opacity-70">
-                {[40, 60, 20, 80, 50, 90, 70].map((h, i) => (
-                  <div key={i} className="w-full bg-[#378ADD] rounded-t-sm transition-all hover:opacity-100" style={{ height: `${h}%` }} />
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-[calc(100vh-64px)] relative overflow-y-auto w-full">
-        
-        {/* Mobile Top Controls Row */}
-        <div className="mobile-only scroll-row p-4 border-b border-[#21262d] bg-[#0d1117] shrink-0 sticky top-0 z-40">
-           <div className="flex items-center gap-2 shrink-0 border-r border-[#21262d] pr-4">
-            <div className="w-10 h-10 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] flex items-center justify-center font-bold text-lg shrink-0">
+      {/* ─── Desktop Sidebar ─── */}
+      <aside className="desktop-only w-[300px] border-r border-[#21262d] bg-[#161b22] flex-shrink-0 flex flex-col h-[calc(100vh-4rem)] sticky top-16 z-40 overflow-hidden">
+        <div className="p-6 border-b border-[#21262d]">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] flex items-center justify-center font-bold text-xl border border-[#1D9E75]/50 flex-shrink-0">
                {user?.name?.charAt(0) || 'V'}
             </div>
-            <div>
-              <div className="text-sm font-bold">{user?.name || 'Rahul'}</div>
-              <div className="text-[10px] text-[#1D9E75] flex items-center gap-1 font-medium bg-[#1D9E75]/10 px-1.5 rounded-full w-fit mt-0.5">
+            <div className="min-w-0">
+              <div className="text-sm font-bold truncate">{user?.name || 'Rahul Sharma'}</div>
+              <div className="text-[10px] text-[#1D9E75] flex items-center gap-1 font-medium bg-[#1D9E75]/10 px-2 py-0.5 rounded-full w-fit mt-1">
                 <FiCheck /> Verified
               </div>
             </div>
           </div>
-
-          {/* Vehicle Selection */}
-          <div className="flex gap-1 shrink-0 px-2 items-center border-r border-[#21262d]">
-            {['Bike', 'Car', 'Auto'].map(v => (
-              <button key={v} onClick={() => setVehicle(v)} className={`px-3 py-1 text-xs font-semibold rounded-full border ${vehicle === v ? 'bg-[#161b22] border-slate-500 text-white' : 'border-[#21262d] text-slate-500'}`}>
-                {v}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0 pl-2">
-            <span className="text-xs text-slate-400 font-bold">{isAvailable ? 'Online' : 'Offline'}</span>
-            <button onClick={toggleAvailability} className={`w-10 h-5 rounded-full relative transition-colors ${isAvailable ? 'bg-[#1D9E75]' : 'bg-[#21262d]'}`}>
-              <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all ${isAvailable ? 'left-[22px]' : 'left-[3px]'}`} />
-            </button>
-          </div>
+          
+          <button 
+            onClick={toggleAvailability}
+            className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${isAvailable ? 'bg-[#1D9E75]/10 border-[#1D9E75]/50' : 'bg-[#21262d] border-[#30363d]'}`}
+          >
+            <div className="text-left">
+              <div className={`text-xs font-bold ${isAvailable ? 'text-[#1D9E75]' : 'text-slate-400'}`}>{isAvailable ? 'YOU ARE ONLINE' : 'YOU ARE OFFLINE'}</div>
+              <div className="text-[10px] text-slate-500">{isAvailable ? 'Receiving tasks' : 'Matching paused'}</div>
+            </div>
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${isAvailable ? 'bg-[#1D9E75]' : 'bg-[#30363d]'}`}>
+              <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${isAvailable ? 'left-[16px]' : 'left-1'}`} />
+            </div>
+          </button>
         </div>
 
-        {!activeDelivery && (
-           <div className="flex items-center gap-1 p-2 bg-[#0d1117] border-b border-[#21262d] overflow-x-auto hide-scrollbar">
-            <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === 'tasks' ? 'border-[#1D9E75] text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>Available Tasks</button>
-            <button onClick={() => setActiveTab('history')} className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === 'history' ? 'border-[#1D9E75] text-white' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>Delivery History</button>
-          </div>
-        )}
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          {[
+            { id: 'tasks', label: 'Available Tasks', icon: <FiTruck /> },
+            { id: 'history', label: 'Delivery History', icon: <FiClock /> },
+            { id: 'earnings', label: 'Earnings & Impact', icon: <FiDollarSign /> },
+            { id: 'settings', label: 'Profile Settings', icon: <FiCheck /> },
+          ].map(item => (
+            <button 
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === item.id ? 'bg-[#1D9E75] text-white shadow-lg shadow-[#1D9E75]/20' : 'text-slate-400 hover:bg-[#21262d] hover:text-slate-200'}`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </nav>
 
-        {/* ----- TASK FEED VIEW ----- */}
-        {!activeDelivery && activeTab === 'tasks' && (
-          <div className="p-4 md:p-6 overflow-y-auto w-full max-w-3xl mx-auto">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-              <h1 className="text-xl font-bold">Available pickups near you</h1>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-[#161b22] border border-[#21262d] px-3 py-1.5 rounded-lg text-sm">
-                  <FiFilter className="text-slate-400" />
-                  <span className="text-slate-300">{radius} km</span>
-                  <input type="range" min="1" max="20" value={radius} onChange={e=>setRadius(e.target.value)} className="w-20 accent-[#1D9E75]" />
-                </div>
-              </div>
-            </div>
-            
-            <p className="text-sm text-slate-400 mb-4 font-medium">{availableTasks.length} tasks available</p>
+        <div className="p-4 mt-auto">
+           <div className="bg-[#0d1117] rounded-xl p-3 border border-[#21262d]">
+             <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Selected Vehicle</div>
+             <div className="flex gap-1">
+               {['Bike', 'Car', 'Auto'].map(v => (
+                 <button key={v} onClick={() => setVehicle(v)} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-all ${vehicle === v ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]' : 'border-[#21262d] text-slate-500'}`}>
+                   {v}
+                 </button>
+               ))}
+             </div>
+           </div>
+        </div>
+      </aside>
 
-            <div className="space-y-4">
-              {availableTasks.map(task => (
-                <div key={task.id} className="bg-[#161b22] border border-[#21262d] rounded-xl flex overflow-hidden shadow-lg hover:border-slate-600 transition-colors">
-                  {/* Urgency Strip */}
-                  <div className={`w-1 ${getUrgencyColor(task.urgency)} shrink-0`} />
-                  
-                  <div className="p-4 w-full">
-                    {/* Header */}
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-[15px] font-bold text-white leading-tight">{task.food}</h3>
-                        <p className="text-[12px] text-slate-400 mt-1">{task.donor}</p>
-                      </div>
-                      {task.payout > 0 && (
-                        <span className="bg-[#1D9E75]/10 text-[#1D9E75] border border-[#1D9E75]/30 px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap">
-                          ₹{task.payout}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Info Chips */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                       <span className="flex items-center gap-1.5 text-xs bg-[#0d1117] border border-[#21262d] px-2 py-1 rounded-md text-slate-300">
-                         <FiMapPin className="text-[#378ADD]" /> {task.pickupDistance} km away
-                       </span>
-                       <span className={`flex items-center gap-1.5 text-xs bg-[#0d1117] border border-[#21262d] px-2 py-1 rounded-md ${task.expiryHours <= 2 ? 'text-[#e24b4a]' : 'text-slate-300'}`}>
-                         <FiClock /> {task.expiryHours}h left
-                       </span>
-                    </div>
-
-                    {/* Route Preview */}
-                    <div className="bg-[#0d1117] border border-[#21262d] rounded-lg p-3 mb-4 text-[13px] relative isolate">
-                      <div className="absolute left-[20.5px] top-[24px] bottom-[24px] w-0.5 border-l-2 border-dashed border-[#21262d] -z-10" />
-                      
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="w-5 h-5 rounded-full bg-[#161b22] border-[3px] border-[#EF9F27] shrink-0 mt-0.5" />
-                        <div className="flex-1 flex justify-between">
-                          <span className="text-slate-300"><span className="text-slate-500 mr-1">Pickup:</span>{task.donor.split(',')[0]}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-[#161b22] border-[3px] border-[#378ADD] shrink-0 mt-0.5" />
-                        <div className="flex-1 flex justify-between">
-                           <span className="text-slate-300"><span className="text-slate-500 mr-1">Drop:</span>{task.ngo.split(',')[0]}</span>
-                           <span className="text-[#EF9F27] font-semibold bg-[#EF9F27]/10 px-2 rounded-md">{task.totalDistance} km</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => acceptTask(task)}
-                      className="w-full bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white font-bold py-2.5 rounded-lg transition-colors shadow-md"
-                    >
-                      Accept task
-                    </button>
-                  </div>
-                </div>
-              ))}
-              
-              {availableTasks.length === 0 && (
-                <div className="text-center py-10 bg-[#161b22] border border-[#21262d] rounded-xl text-slate-400">
-                  No tasks available within your radius.<br/>Try expanding the filter.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ----- ACTIVE DELIVERY MAP VIEW ----- */}
-        {activeDelivery && (
-          <div className="flex-1 relative w-full h-full flex flex-col md:flex-row">
+      {/* ─── Main Content Area ─── */}
+      <main className="flex-1 flex flex-col h-[calc(100vh-4rem)] relative overflow-y-auto w-full">
+        
+        {/* Active Delivery takes priority if it exists AND we are on 'tasks' tab */}
+        {activeDelivery && activeTab === 'tasks' ? (
+          <div className="flex-1 relative w-full h-full flex flex-col md:flex-row animate-fade-in">
             <div className="h-[50vh] md:h-full w-full md:flex-1 relative z-0 shrink-0">
                <DeliveryMap 
                  volunteerLocation={volunteerLocation}
@@ -424,166 +251,278 @@ export default function VolunteerDashboard() {
                />
             </div>
             
-            {/* Floating Status Card */}
-            <div className="flex-1 md:w-[400px] md:max-w-md bg-[#161b22] border-t md:border-l md:border-t-0 border-[#21262d] p-4 md:p-6 shadow-2xl z-10 flex flex-col pt-6 md:pt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-[#EF9F27] animate-pulse"></div>
-                <div className="text-sm font-bold">
-                  {deliveryStatus === 'accepted' ? 'En route to pickup' : 'In transit'} — {activeDelivery.totalDistance} km
-                </div>
+            <div className="flex-1 md:w-[400px] md:max-w-md bg-[#161b22] border-t md:border-l md:border-t-0 border-[#21262d] p-6 shadow-2xl z-10 flex flex-col pt-8">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-3 h-3 rounded-full bg-[#EF9F27] animate-pulse"></div>
+                <div className="text-lg font-bold">In Transit — {activeDelivery.totalDistance} km</div>
               </div>
               
-              <div className="text-xs text-slate-400 space-y-1 mb-4 flex-1">
-                <div><span className="font-semibold text-slate-300">Pickup:</span> {activeDelivery.donor.split(',')[0]}</div>
-                <div><span className="font-semibold text-slate-300">Drop:</span> {activeDelivery.ngo.split(',')[0]}</div>
-              </div>
-
-              {/* Step indicator */}
-              <div className="flex items-center justify-between gap-1 mb-5 text-[10px] font-bold uppercase tracking-wider text-center pt-4">
-                <div className={`flex-1 flex flex-col items-center gap-1 ${deliveryStatus === 'picked_up' ? 'text-[#1D9E75]' : deliveryStatus==='accepted' ? 'text-[#1D9E75] animate-pulse' : 'text-[#1D9E75]'}`}>
-                  <div className={`w-full h-1.5 rounded-full ${deliveryStatus==='accepted' ? 'bg-[#1D9E75]' : 'bg-[#1D9E75]'}`}></div>
-                  Accepted
+              <div className="space-y-4 mb-8 bg-[#0d1117] p-4 rounded-xl border border-[#21262d]">
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-[#EF9F27]/20 flex items-center justify-center shrink-0 mt-1"><FiMapPin className="text-[#EF9F27]" size={14} /></div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Pickup Location</div>
+                    <div className="text-sm font-semibold">{activeDelivery.donor}</div>
+                  </div>
                 </div>
-                <div className={`flex-1 flex flex-col items-center gap-1 ${deliveryStatus === 'picked_up' ? 'text-[#1D9E75] animate-pulse' : 'text-[#21262d]'}`}>
-                  <div className={`w-full h-1.5 rounded-full ${deliveryStatus==='picked_up' ? 'bg-[#1D9E75]' : 'bg-[#21262d]'}`}></div>
-                  In Transit
-                </div>
-                 <div className={`flex-1 flex flex-col items-center gap-1 text-[#21262d]`}>
-                  <div className={`w-full h-1.5 rounded-full bg-[#21262d]`}></div>
-                  Delivered
+                <div className="flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-[#378ADD]/20 flex items-center justify-center shrink-0 mt-1"><FiMapPin className="text-[#378ADD]" size={14} /></div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Drop Location</div>
+                    <div className="text-sm font-semibold">{activeDelivery.ngo}</div>
+                  </div>
                 </div>
               </div>
 
-              <button 
-                onClick={completeStep}
-                className="w-full bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white font-bold py-3 md:py-4 rounded-lg transition-colors shadow-md mt-auto"
-              >
-                {deliveryStatus === 'accepted' ? 'Confirm Pickup' : 'Mark as Delivered'}
-              </button>
+              {/* Progress Steps */}
+              <div className="grid grid-cols-3 gap-2 mb-8 text-[10px] font-bold uppercase text-center">
+                 <div className="space-y-2 text-[#1D9E75]">
+                    <div className="h-1.5 rounded-full bg-[#1D9E75]"></div>
+                    Confirmed
+                 </div>
+                 <div className={`space-y-2 ${deliveryStatus === 'picked_up' ? 'text-[#1D9E75]' : 'text-slate-600 animate-pulse'}`}>
+                    <div className={`h-1.5 rounded-full ${deliveryStatus === 'picked_up' ? 'bg-[#1D9E75]' : 'bg-[#21262d]'}`}></div>
+                    In Transit
+                 </div>
+                 <div className="space-y-2 text-slate-600">
+                    <div className="h-1.5 rounded-full bg-[#21262d]"></div>
+                    Delivered
+                 </div>
+              </div>
+
+              <div className="mt-auto space-y-3">
+                <button onClick={() => openMaps(deliveryStatus === 'accepted' ? activeDelivery.lat1 : activeDelivery.lat2, deliveryStatus === 'accepted' ? activeDelivery.lng1 : activeDelivery.lng2)} className="w-full py-4 rounded-xl border border-[#378ADD] text-[#378ADD] font-bold hover:bg-[#378ADD]/10 transition-all flex items-center justify-center gap-2">
+                  <FiMapPin /> View in Navigation
+                </button>
+                <button onClick={completeStep} className="w-full py-4 rounded-xl bg-[#1D9E75] text-white font-bold hover:bg-[#1D9E75]/90 transition-all shadow-xl shadow-[#1D9E75]/20">
+                  {deliveryStatus === 'accepted' ? 'Confirm Food Pickup' : 'Mark as Delivered'}
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        ) : (
+          <div className="p-4 md:p-8 animate-fade-in max-w-7xl mx-auto w-full">
+            {/* Conditional Tab Rendering */}
+            {activeTab === 'tasks' && (
+              <>
+                <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold mb-1">Available Deliveries</h1>
+                    <p className="text-sm text-slate-500">Pick up surplus food from local donors and deliver to NGOs.</p>
+                  </div>
+                  <div className="flex items-center gap-3 bg-[#161b22] border border-[#21262d] px-4 py-2 rounded-xl">
+                    <FiFilter className="text-slate-400" />
+                    <span className="text-xs font-bold text-slate-300">Radius: {radius}km</span>
+                    <input type="range" min="1" max="20" value={radius} onChange={e=>setRadius(e.target.value)} className="w-24 accent-[#1D9E75]" />
+                  </div>
+                </div>
 
-        {/* ----- DELIVERY HISTORY ----- */}
-        {!activeDelivery && activeTab === 'history' && (
-          <div className="p-4 md:p-6 overflow-y-auto w-full mx-auto max-w-5xl">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-xl font-bold">Delivery History</h1>
-              <input 
-                type="text" 
-                placeholder="Search NGOs or Donors..." 
-                className="bg-[#161b22] border border-[#21262d] rounded-lg px-3 py-1.5 text-sm w-48 focus:border-slate-500 outline-none"
-              />
-            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {availableTasks.map(task => (
+                    <div key={task.id} className="bg-[#161b22] border border-[#21262d] rounded-2xl overflow-hidden hover:border-[#1D9E75]/50 transition-all shadow-lg group">
+                      <div className="p-5">
+                         <div className="flex justify-between items-start mb-6">
+                           <div className="flex gap-3">
+                             <div className="w-12 h-12 rounded-xl bg-[#1D9E75]/10 flex items-center justify-center text-2xl">🍛</div>
+                             <div>
+                               <h3 className="font-bold text-white group-hover:text-[#1D9E75] transition-colors">{task.food}</h3>
+                               <p className="text-xs text-slate-500 mt-1">{task.donor.split(',')[0]}</p>
+                             </div>
+                           </div>
+                           <div className="flex flex-col items-end gap-1">
+                             <span className="text-sm font-bold text-[#1D9E75]">₹{task.payout}</span>
+                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Payout</span>
+                           </div>
+                         </div>
 
-            <div className="overflow-x-auto bg-[#161b22] border border-[#21262d] rounded-xl shadow-lg pb-4 w-full scroll-row">
-              <table className="w-full min-w-[700px] text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-[#21262d] text-xs uppercase tracking-wider text-slate-500 bg-[#0d1117]/50">
-                    <th className="p-4 font-semibold whitespace-nowrap">Date</th>
-                    <th className="p-4 font-semibold whitespace-nowrap">Food Item</th>
-                    <th className="p-4 font-semibold whitespace-nowrap">Route</th>
-                    <th className="p-4 font-semibold whitespace-nowrap">Dist / Time</th>
-                    <th className="p-4 font-semibold whitespace-nowrap">Status</th>
-                    <th className="p-4 font-semibold whitespace-nowrap">Rating</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  <tr className="border-b border-[#21262d] hover:bg-[#21262d]/30 transition-colors">
-                    <td className="p-4 text-slate-300 whitespace-nowrap">Today, 2:30 PM</td>
-                    <td className="p-4 font-medium whitespace-nowrap">10kg Rice & Dal</td>
-                    <td className="p-4"><span className="text-slate-500 text-xs block whitespace-nowrap">Spice Route →</span> Asha NGO</td>
-                    <td className="p-4 text-slate-400 whitespace-nowrap">4.2 km <br/><span className="text-xs">22 mins</span></td>
-                    <td className="p-4"><span className="text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap">Delivered</span></td>
-                    <td className="p-4 text-[#EF9F27] flex gap-0.5 mt-1.5 whitespace-nowrap">★★★★★</td>
-                  </tr>
-                  <tr className="border-b border-[#21262d] hover:bg-[#21262d]/30 transition-colors">
-                    <td className="p-4 text-slate-300 whitespace-nowrap">Yesterday</td>
-                    <td className="p-4 font-medium whitespace-nowrap">Bakery Items</td>
-                    <td className="p-4"><span className="text-slate-500 text-xs block whitespace-nowrap">OvenFresh →</span> Hope Shelter</td>
-                    <td className="p-4 text-slate-400 whitespace-nowrap">1.8 km <br/><span className="text-xs">12 mins</span></td>
-                    <td className="p-4"><span className="text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap">Delivered</span></td>
-                    <td className="p-4 text-[#EF9F27] flex gap-0.5 mt-1.5 whitespace-nowrap">★★★★<span className="text-[#21262d]">★</span></td>
-                  </tr>
-                  <tr className="border-b border-[#21262d] hover:bg-[#21262d]/30 transition-colors">
-                    <td className="p-4 text-slate-300 whitespace-nowrap">Oct 12</td>
-                    <td className="p-4 font-medium whitespace-nowrap">Wedding Buffet</td>
-                    <td className="p-4"><span className="text-slate-500 text-xs block whitespace-nowrap">Grand Hotel →</span> Uday Found.</td>
-                    <td className="p-4 text-slate-400 whitespace-nowrap">6.5 km <br/><span className="text-xs">35 mins</span></td>
-                    <td className="p-4"><span className="text-red-400 bg-red-400/10 px-2 py-1 rounded-md text-xs font-bold whitespace-nowrap">Cancelled</span></td>
-                    <td className="p-4 text-slate-500 text-xs flex items-center gap-1 mt-1.5 whitespace-nowrap"><FiClock/> No rating</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div className="flex justify-between items-center mt-4 text-xs text-slate-500">
-              <span>Showing 1-3 of 42 deliveries</span>
-              <div className="flex gap-2">
-                <button className="px-3 py-1 border border-[#21262d] rounded bg-[#161b22] hover:text-white">Prev</button>
-                <button className="px-3 py-1 border border-[#21262d] rounded bg-[#161b22] hover:text-white">Next</button>
+                         <div className="grid grid-cols-2 gap-4 mb-6">
+                           <div className="bg-[#0d1117] p-3 rounded-xl border border-[#21262d] flex items-center gap-3">
+                             <FiMapPin className="text-[#378ADD]" size={16} />
+                             <div className="text-xs">
+                               <div className="text-slate-500 font-bold mb-0.5 uppercase text-[9px]">Total Dist</div>
+                               <div className="font-bold text-slate-300">{task.totalDistance} km</div>
+                             </div>
+                           </div>
+                           <div className="bg-[#0d1117] p-3 rounded-xl border border-[#21262d] flex items-center gap-3">
+                             <FiClock className={task.expiryHours <= 2 ? 'text-[#e24b4a]' : 'text-[#EF9F27]'} size={16} />
+                             <div className="text-xs">
+                               <div className="text-slate-500 font-bold mb-0.5 uppercase text-[9px]">Expiry</div>
+                               <div className={`font-bold ${task.expiryHours <= 2 ? 'text-[#e24b4a]' : 'text-slate-300'}`}>{task.expiryHours}h left</div>
+                             </div>
+                           </div>
+                         </div>
+
+                         <button onClick={() => acceptTask(task)} className="w-full py-3 rounded-xl bg-[#1D9E75] text-white font-bold text-sm hover:translate-y-[-2px] transition-all shadow-xl shadow-[#1D9E75]/10">
+                           Accept & Start Navigation
+                         </button>
+                      </div>
+                    </div>
+                  ))}
+                  {availableTasks.length === 0 && <div className="col-span-full py-20 text-center bg-[#161b22] border border-dashed border-[#21262d] rounded-2xl text-slate-500">No tasks found nearby.</div>}
+                </div>
+              </>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h1 className="text-2xl font-bold">Delivery History</h1>
+                  <span className="text-xs font-bold text-slate-500 bg-[#161b22] px-3 py-1.5 rounded-full border border-[#21262d]">Total: 42 Deliveries</span>
+                </div>
+                
+                <div className="bg-[#161b22] border border-[#21262d] rounded-2xl overflow-hidden shadow-xl">
+                  <table className="w-full text-left">
+                    <thead className="bg-[#0d1117] text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+                      <tr>
+                        <th className="px-6 py-4">Status & Date</th>
+                        <th className="px-6 py-4">Consignment Info</th>
+                        <th className="px-6 py-4 text-center">Payout</th>
+                        <th className="px-6 py-4 text-right">Rating</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#21262d]">
+                      {[
+                        { date: 'Today, 2:30 PM', food: '10kg Rice & Dal', route: 'Spice Route → Asha NGO', payout: '₹45', status: 'Delivered', rating: 5 },
+                        { date: 'Yesterday', food: 'Fresh Bakery Items', route: 'Bakery Bliss → Hope Home', payout: '₹35', status: 'Delivered', rating: 4 },
+                        { date: 'Oct 12, 11:15 AM', food: 'Party Surplus', route: 'Grand Hotel → Uday NGO', payout: '₹0', status: 'Cancelled', rating: 0 },
+                      ].map((item, i) => (
+                        <tr key={i} className="hover:bg-[#21262d]/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="text-[11px] font-bold text-[#1D9E75] mb-1 uppercase bg-[#1D9E75]/10 px-2 py-0.5 rounded-full w-fit">{item.status}</div>
+                            <div className="text-xs text-slate-400 font-medium">{item.date}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-bold text-white">{item.food}</div>
+                            <div className="text-xs text-slate-500 mt-1">{item.route}</div>
+                          </td>
+                          <td className="px-6 py-4 text-center font-bold text-[#EF9F27] text-sm">
+                            {item.payout}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                             <div className="flex justify-end gap-0.5 text-[#EF9F27]">
+                               {item.rating > 0 ? Array(item.rating).fill(0).map((_, j) => <FiStar key={j} className="fill-current" />) : <span className="text-slate-600 text-xs">-</span>}
+                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
+
+            {activeTab === 'earnings' && (
+              <div className="space-y-8">
+                <h1 className="text-2xl font-bold">Earnings & Impact Dashboard</h1>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-[#161b22] border border-[#21262d] p-6 rounded-2xl">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-4">Total Earnings</div>
+                    <div className="text-3xl font-bold text-white">₹1,840</div>
+                    <div className="text-[10px] text-[#1D9E75] font-bold mt-2">+₹125 this week</div>
+                  </div>
+                   <div className="bg-[#161b22] border border-[#21262d] p-6 rounded-2xl">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-4">Avg. Rating</div>
+                    <div className="text-3xl font-bold text-white flex items-center gap-2">4.9 <FiStar size={24} className="text-[#EF9F27] fill-current" /></div>
+                    <div className="text-[10px] text-slate-500 font-bold mt-2">Based on 38 reviews</div>
+                  </div>
+                   <div className="bg-[#161b22] border border-[#21262d] p-6 rounded-2xl">
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-4">CO2 Offset</div>
+                    <div className="text-3xl font-bold text-[#1D9E75]">12.4 kg</div>
+                    <div className="text-[10px] text-slate-500 font-bold mt-2">By preventing food waste</div>
+                  </div>
+                </div>
+
+                 <div className="bg-[#161b22] border border-[#21262d] p-8 rounded-2xl">
+                    <h3 className="text-lg font-bold mb-6">Delivery Performance (Last 7 Days)</h3>
+                    <div className="flex items-end justify-between h-56 gap-4 px-2">
+                      {[
+                        { day: 'Mon', val: 45 }, { day: 'Tue', val: 78 }, { day: 'Wed', val: 32 }, 
+                        { day: 'Thu', val: 95 }, { day: 'Fri', val: 64 }, { day: 'Sat', val: 48 }, { day: 'Sun', val: 85 }
+                      ].map((item, i) => (
+                        <div key={i} className="flex-1 flex flex-col items-center gap-3 group h-full justify-end">
+                          <span className="text-[10px] font-bold text-[#1D9E75] opacity-0 group-hover:opacity-100 transition-opacity">{item.val}</span>
+                          <div className="w-full bg-[#1D9E75]/20 rounded-lg relative overflow-hidden transition-all group-hover:bg-[#1D9E75]/40 border border-[#1D9E75]/10" style={{ height: `${item.val}%` }}>
+                            <div className="absolute inset-x-0 bottom-0 bg-[#1D9E75] h-full transition-all group-hover:translate-y-0 translate-y-[10%] shadow-[0_-4px_12px_rgba(29,158,117,0.3)]"></div>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">{item.day}</span>
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+              </div>
+            )}
+
+            {activeTab === 'settings' && (
+              <div className="max-w-2xl space-y-8">
+                <h1 className="text-2xl font-bold">Profile Settings</h1>
+                <div className="bg-[#161b22] border border-[#21262d] p-8 rounded-2xl space-y-6">
+                  <div className="flex items-center gap-6 pb-6 border-b border-[#21262d]">
+                    <div className="w-20 h-20 rounded-2xl bg-[#1D9E75]/20 text-[#1D9E75] flex items-center justify-center font-bold text-3xl shrink-0">
+                       {user?.name?.charAt(0) || 'V'}
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold">{user?.name || 'Rahul Sharma'}</h4>
+                      <p className="text-sm text-slate-500">{user?.email || 'rahul@example.com'}</p>
+                      <button className="text-xs font-bold text-[#1D9E75] mt-2 hover:underline">Change Profile Photo</button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Phone Number</label>
+                      <input disabled type="text" value="+91 98765 43210" className="w-full bg-[#0d1117] border border-[#21262d] p-3 rounded-xl text-sm focus:border-[#1D9E75] outline-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Registration ID</label>
+                      <input disabled type="text" value="FBRV-99420" className="w-full bg-[#0d1117] border border-[#21262d] p-3 rounded-xl text-sm opacity-50" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-6">
+                    <h5 className="text-sm font-bold">Security & Availability</h5>
+                    <div className="bg-[#0d1117] p-4 rounded-xl border border-[#21262d] flex items-center justify-between">
+                       <span className="text-sm font-medium">Automatic Online Status</span>
+                       <button className="w-10 h-5 rounded-full bg-[#1D9E75] relative"><div className="w-4 h-4 bg-white rounded-full absolute top-0.5 right-0.5"></div></button>
+                    </div>
+                    <div className="bg-[#0d1117] p-4 rounded-xl border border-[#21262d] flex items-center justify-between text-[#e24b4a] opacity-50">
+                       <span className="text-sm font-medium">Reset Data & Statistics</span>
+                       <span className="text-xs font-bold uppercase tracking-widest cursor-pointer">Reset</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
 
       {/* Notifications Drawer */}
-      <div className={`fixed inset-0 bg-black/50 z-50 transition-opacity ${notificationsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setNotificationsOpen(false)}>
+      <div className={`fixed inset-0 bg-black/70 z-[100] transition-opacity ${notificationsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setNotificationsOpen(false)}>
         <div 
-          className={`absolute right-0 top-0 h-full w-[300px] bg-[#0d1117] border-l border-[#21262d] shadow-2xl transition-transform duration-300 ease-in-out ${notificationsOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`absolute right-0 top-0 h-full w-[350px] bg-[#161b22] border-l border-[#21262d] shadow-2xl transition-transform duration-300 ease-out ${notificationsOpen ? 'translate-x-0' : 'translate-x-full'}`}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between p-4 border-b border-[#21262d]">
-            <h2 className="font-bold text-lg">Notifications</h2>
-            <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-white"><FiX size={20}/></button>
+          <div className="flex items-center justify-between p-6 border-b border-[#21262d]">
+            <h2 className="font-bold text-lg">Activity Feed</h2>
+            <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-white"><FiX size={24}/></button>
           </div>
-          <div className="p-4 text-sm text-[#378ADD] hover:underline cursor-pointer border-b border-[#21262d]">
-            Mark all read
-          </div>
-          <div className="overflow-y-auto h-[calc(100%-110px)]">
-            <div className="p-4 border-b border-[#21262d] hover:bg-[#161b22] transition-colors cursor-pointer border-l-4 border-l-[#378ADD] bg-[#161b22]/50">
-              <div className="flex gap-3 mb-1">
-                <div className="text-[#378ADD] mt-0.5"><FiBell /></div>
-                <div>
-                  <div className="font-semibold text-sm text-white">New task nearby!</div>
-                  <div className="text-xs text-slate-400 leading-snug tracking-tight">Taj Palace marked 25kg surplus just 2km from you.</div>
-                  <div className="text-[10px] text-slate-500 mt-2">Just now</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 border-b border-[#21262d] hover:bg-[#161b22] transition-colors cursor-pointer border-l-4 border-l-[#1D9E75]">
-              <div className="flex gap-3 mb-1">
-                <div className="text-[#1D9E75] mt-0.5"><FiCheck /></div>
-                <div>
-                  <div className="font-semibold text-sm text-white">Delivery Confirmed</div>
-                  <div className="text-xs text-slate-400 leading-snug tracking-tight">Asha NGO confirmed receipt of your delivery.</div>
-                  <div className="text-[10px] text-slate-500 mt-2">1h ago</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 border-b border-[#21262d] hover:bg-[#161b22] transition-colors cursor-pointer border-l-4 border-l-[#EF9F27]">
-              <div className="flex gap-3 mb-1">
-                <div className="text-[#EF9F27] mt-0.5"><FiStar /></div>
-                <div>
-                  <div className="font-semibold text-sm text-white">New Rating Received</div>
-                  <div className="text-xs text-slate-400 leading-snug tracking-tight">You received 5 stars for your previous delivery!</div>
-                  <div className="text-[10px] text-slate-500 mt-2">2h ago</div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-4 border-b border-[#21262d] hover:bg-[#161b22] transition-colors cursor-pointer border-l-4 border-l-[#e24b4a]">
-              <div className="flex gap-3 mb-1">
-                <div className="text-[#e24b4a] mt-0.5"><FiX /></div>
-                <div>
-                  <div className="font-semibold text-sm text-white">Task Cancelled</div>
-                  <div className="text-xs text-slate-400 leading-snug tracking-tight">A donor cancelled a pickup you were assigned to.</div>
-                  <div className="text-[10px] text-slate-500 mt-2">Yesterday</div>
-                </div>
-              </div>
-            </div>
+          <div className="overflow-y-auto h-[calc(100%-80px)] p-4 space-y-3">
+             {[
+               { icon: <FiBell className="text-[#378ADD]" />, title: 'New task nearby!', text: 'Taj Palace marked 25kg surplus just 2km from you.', time: 'Just now', border: 'border-l-[#378ADD]' },
+               { icon: <FiCheck className="text-[#1D9E75]" />, title: 'Delivery Confirmed', text: 'Asha NGO confirmed receipt of your delivery.', time: '1h ago', border: 'border-l-[#1D9E75]' },
+               { icon: <FiStar className="text-[#EF9F27]" />, title: 'New Rating!', text: 'You received 5 stars for your previous delivery.', time: '2h ago', border: 'border-l-[#EF9F27]' }
+             ].map((n, i) => (
+               <div key={i} className={`bg-[#0d1117] p-4 rounded-xl border-l-4 ${n.border} border-y border-r border-[#21262d] hover:bg-[#21262d] cursor-pointer transition-colors`}>
+                  <div className="flex gap-3">
+                    <div className="shrink-0 mt-1">{n.icon}</div>
+                    <div>
+                      <div className="text-sm font-bold">{n.title}</div>
+                      <p className="text-xs text-slate-500 mt-1 leading-relaxed">{n.text}</p>
+                      <div className="text-[10px] text-slate-600 mt-2 font-bold uppercase">{n.time}</div>
+                    </div>
+                  </div>
+               </div>
+             ))}
           </div>
         </div>
       </div>

@@ -144,8 +144,8 @@ export default function SignupVerify() {
         orgName: formData.orgName,
         orgType: formData.orgType,
         address: formData.address,
-        latitude: null,
-        longitude: null,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
 
       await register(payload);

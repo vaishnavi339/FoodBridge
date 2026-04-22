@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { listingsAPI } from '@/services/api';
-import { FiPlusCircle, FiPackage, FiClock, FiTruck, FiCheckCircle, FiArrowRight, FiAlertTriangle, FiStar, FiUsers, FiMapPin } from 'react-icons/fi';
+import { FiPlusCircle, FiPackage, FiClock, FiTruck, FiCheckCircle, FiArrowRight, FiAlertTriangle, FiStar, FiUsers, FiMapPin, FiSettings } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 /* ── Exact design tokens ── */
@@ -33,7 +33,9 @@ export default function DonorDashboard() {
   const [listings, setListings] = useState([]);
   const [allListings, setAllListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
   const [activities, setActivities] = useState([]);
+
 
   useEffect(() => { fetchListings(); }, []);
 
@@ -105,234 +107,251 @@ export default function DonorDashboard() {
 
   const feedIcons = { claimed: { icon: '✓', bg: '#0f2a1e', color: COLORS.accent }, delivered: { icon: '✓✓', bg: '#0f2a1e', color: COLORS.accent }, transit: { icon: '🚚', bg: '#0f1a2e', color: '#3b82f6' }, expiring: { icon: '⚠', bg: '#2a1010', color: COLORS.red }, update: { icon: '🔄', bg: '#1a1a2e', color: '#818cf8' } };
 
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: <FiPackage size={18} /> },
+    { id: 'listings', label: 'My Listings', icon: <FiPlusCircle size={18} /> },
+    { id: 'analytics', label: 'Impact Analytics', icon: <FiUsers size={18} /> },
+    { id: 'settings', label: 'Settings', icon: <FiSettings size={18} /> },
+  ];
+
   /* ── Card style helper ── */
-  const cardStyle = { background: COLORS.cardBg, border: `0.5px solid ${COLORS.cardBorder}`, borderRadius: '1rem', padding: '1.5rem', transition: 'border-color 0.2s ease' };
+  const sideCard = { background: COLORS.cardBg, border: `0.5px solid ${COLORS.cardBorder}`, borderRadius: '0.75rem', padding: '1rem' };
+  const cardStyle = { ...sideCard, padding: '1.5rem', transition: 'border-color 0.2s ease' };
+
   const cardHover = { borderColor: `${COLORS.accent}66` };
 
   const barColors = [COLORS.accent, COLORS.amber, '#6366f1', '#f87171'];
 
   return (
-    <div style={{ minHeight: '100vh', paddingTop: '5rem', paddingBottom: '3rem', background: COLORS.pageBg }}>
-      <div style={{ maxWidth: '80rem', margin: '0 auto', padding: '0 1.5rem' }}>
-
-        {/* ───── Header ───── */}
-        <div className="animate-fade-in" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
-          <div>
-            <h1 style={{ fontSize: '2rem', fontWeight: 700, lineHeight: 1.3 }}>
-              Welcome back, <span style={{ color: COLORS.accent }}>{user?.name?.split(' ')[0] || 'Donor'}</span> 👋
-            </h1>
-            <p style={{ color: '#8b949e', marginTop: '0.5rem', fontSize: '0.875rem' }}>
-              {user?.orgType?.replace('_', ' ') || 'PM'} • {user?.orgName || 'Organization'} • Delhi, India •{' '}
-              <span style={{ color: COLORS.accent }}>Active donor since {memberSince}</span>
-            </p>
+    <div className="flex bg-[#0d1117] min-h-screen pt-16">
+      {/* ─── Left Sidebar ─── */}
+      <aside className="desktop-only" style={{ width: 300, flexShrink: 0, background: COLORS.cardBg, borderRight: `0.5px solid ${COLORS.cardBorder}`, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 4rem)', position: 'sticky', top: '4rem' }}>
+        <div style={{ padding: '1.5rem', borderBottom: `1px solid ${COLORS.cardBorder}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: `linear-gradient(135deg, ${COLORS.accent}, #0d6e52)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+              {user?.name?.charAt(0) || 'D'}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '1rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.orgName || user?.name || 'Donor'}</div>
+              <div style={{ fontSize: '0.75rem', color: '#8b949e' }}>Member since {memberSince}</div>
+            </div>
           </div>
-          <Link href="/donor/create-listing" style={{ textDecoration: 'none', background: COLORS.accent, color: '#fff', padding: '0.75rem 1.75rem', borderRadius: '0.75rem', fontWeight: 600, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', transition: 'all 0.25s', boxShadow: `0 4px 20px ${COLORS.accent}44` }}>
-            <FiPlusCircle size={18} /> Donate food <FiArrowRight size={15} />
+          <div style={{ background: `${COLORS.accent}1a`, border: `1px solid ${COLORS.accent}33`, borderRadius: '0.5rem', padding: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: COLORS.accent, fontWeight: 600 }}>Elite Donor</span>
+            <span style={{ fontSize: '0.7rem', color: COLORS.accent, fontWeight: 700 }}>Lvl {level}</span>
+          </div>
+        </div>
+
+        <nav style={{ padding: '0.75rem', flex: 1 }}>
+          {navItems.map(item => (
+            <button key={item.id} onClick={() => setActiveTab(item.id)} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%',
+              padding: '0.65rem 0.75rem', borderRadius: '0.5rem', border: 'none', cursor: 'pointer',
+              fontSize: '0.85rem', fontWeight: 500, transition: 'all 0.15s',
+              background: activeTab === item.id ? '#1a2332' : 'transparent',
+              color: activeTab === item.id ? COLORS.accent : '#8b949e',
+              borderLeft: activeTab === item.id ? `3px solid ${COLORS.accent}` : '3px solid transparent',
+            }}>
+              {item.icon} {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div style={{ padding: '1.5rem', borderTop: `1px solid ${COLORS.cardBorder}` }}>
+          <Link href="/donor/create-listing" style={{ textDecoration: 'none', background: COLORS.accent, color: '#fff', padding: '0.6rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+            <FiPlusCircle size={16} /> New Donation
           </Link>
         </div>
+      </aside>
 
-        {/* ───── Stats Row ───── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          {[
-            { label: 'Total listings', value: stats.total, icon: <FiPackage size={20} />, iconBg: '#1c2541', iconColor: '#818cf8', badge: '+12%', badgeBg: '#0f2a1e', badgeColor: COLORS.accent },
-            { label: 'Active now', value: stats.active, icon: <FiClock size={20} />, iconBg: '#2a1f08', iconColor: COLORS.amber, badge: stats.urgent > 0 ? `${stats.urgent} urgent` : '0 urgent', badgeBg: stats.urgent > 0 ? '#2a1010' : '#161b22', badgeColor: stats.urgent > 0 ? COLORS.red : '#8b949e' },
-            { label: 'In progress', value: stats.claimed, icon: <FiTruck size={20} />, iconBg: '#0f1a2e', iconColor: '#3b82f6', badge: '2 nearby', badgeBg: '#0f1a2e', badgeColor: '#3b82f6' },
-            { label: 'Delivered', value: stats.delivered, icon: <FiCheckCircle size={20} />, iconBg: '#0f2a1e', iconColor: COLORS.accent, badge: '+3 today', badgeBg: '#0f2a1e', badgeColor: COLORS.accent },
-          ].map((s, i) => (
-            <div key={i} className="animate-fade-in" style={{ ...cardStyle, animationDelay: `${i * 0.08}s`, cursor: 'default' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = `${COLORS.accent}66`}
-              onMouseLeave={e => e.currentTarget.style.borderColor = COLORS.cardBorder}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                <div style={{ width: 42, height: 42, borderRadius: '0.75rem', background: s.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: s.iconColor }}>
-                  {s.icon}
+      {/* ─── Main Content ─── */}
+      <main className="flex-1 w-full p-4 md:p-6 lg:p-8 overflow-y-auto h-[calc(100vh-4rem)]">
+        {activeTab === 'overview' && (
+          <div className="animate-fade-in">
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+              <div>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Dashboard Overview</h1>
+                <p style={{ color: '#8b949e', marginTop: '0.25rem', fontSize: '0.85rem' }}>Welcome back, {user?.name?.split(' ')[0]}</p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700, color: COLORS.accent }}>{impactScore}</div>
+                  <div style={{ fontSize: '0.65rem', color: '#8b949e', textTransform: 'uppercase' }}>Impact Score</div>
                 </div>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.3rem 0.65rem', borderRadius: '9999px', background: s.badgeBg, color: s.badgeColor }}>
-                  {s.badge}
-                </span>
               </div>
-              <div className="animate-countUp" style={{ fontSize: '1.6rem', fontWeight: 600, animationDelay: `${0.2 + i * 0.1}s`, opacity: 0 }}>{s.value}</div>
-              <div style={{ fontSize: '0.85rem', color: '#8b949e', marginTop: '0.25rem' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ───── Middle Row ───── */}
-        <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 mb-6">
-
-          {/* Active Listings */}
-          <div className="animate-fade-in" style={{ ...cardStyle, animationDelay: '0.25s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Your active listings</h2>
-              <Link href="/receiver/browse" style={{ textDecoration: 'none', fontSize: '0.8rem', color: COLORS.accent, fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                View all <FiArrowRight size={12} />
-              </Link>
             </div>
 
-            {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {[1, 2, 3].map(i => <div key={i} className="shimmer" style={{ height: 60, borderRadius: '0.75rem' }} />)}
-              </div>
-            ) : listings.filter(l => l.status === 'available').length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📦</div>
-                <p style={{ fontSize: '0.85rem', color: '#8b949e' }}>No active listings</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {listings.filter(l => l.status === 'available').slice(0, 3).map((listing, idx) => {
-                  const hrs = hoursUntil(listing.expiryTime);
-                  const urg = getUrgency(hrs);
-                  return (
-                    <Link key={listing.id} href={`/tracking/${listing.id}`} className="animate-slideIn"
-                      style={{
-                        textDecoration: 'none', color: 'inherit',
-                        display: 'flex', alignItems: 'center', gap: '0.75rem',
-                        padding: '0.75rem', borderRadius: '0.75rem',
-                        background: COLORS.pageBg, border: hrs < 2 ? `1px solid ${COLORS.red}33` : `1px solid ${COLORS.cardBorder}`,
-                        transition: 'border-color 0.2s', animationDelay: `${idx * 0.1}s`, opacity: 0,
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = `${COLORS.accent}88`}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = hrs < 2 ? `${COLORS.red}33` : COLORS.cardBorder}
-                    >
-                      <div style={{ width: 40, height: 40, borderRadius: '0.6rem', background: urg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
-                        {foodEmoji(listing.foodType)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{listing.title}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#8b949e', marginTop: '0.15rem' }}>
-                          {listing.donor?.orgName || 'You'} <span className="desktop-only inline">• {listing.quantity} {listing.unit}</span>
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.6rem', borderRadius: '9999px', background: urg.bg, color: urg.color, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {urg.label}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Category Breakdown */}
-          <div className="animate-fade-in" style={{ ...cardStyle, animationDelay: '0.3s' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem' }}>Food category breakdown</h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {categoryBreakdown.slice(0, 4).map((cat, i) => (
-                <div key={cat.key}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#c9d1d9' }}>{cat.label}</span>
-                    <span style={{ fontSize: '0.85rem', color: '#8b949e', fontWeight: 500 }}>{cat.pct}%</span>
-                  </div>
-                  <div style={{ height: 5, background: '#21262d', borderRadius: 999, overflow: 'hidden' }}>
-                    <div className="animate-barGrow" style={{
-                      height: '100%', borderRadius: 999, background: barColors[i],
-                      '--target-width': `${cat.pct}%`, animationDelay: `${0.3 + i * 0.15}s`, width: 0,
-                    }} />
-                  </div>
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: 'Total listings', value: stats.total, icon: <FiPackage size={18} />, color: '#818cf8' },
+                { label: 'Active now', value: stats.active, icon: <FiClock size={18} />, color: COLORS.amber },
+                { label: 'In progress', value: stats.claimed, icon: <FiTruck size={18} />, color: '#3b82f6' },
+                { label: 'Delivered', value: stats.delivered, icon: <FiCheckCircle size={18} />, color: COLORS.accent },
+              ].map((s, i) => (
+                <div key={i} style={cardStyle}>
+                  <div style={{ color: s.color, marginBottom: '0.5rem' }}>{s.icon}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{s.value}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#8b949e' }}>{s.label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: `1px solid ${COLORS.cardBorder}` }}>
-              <p style={{ fontSize: '0.85rem', color: '#8b949e', marginBottom: '0.35rem' }}>Total food saved this month</p>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                <span className="animate-countUp" style={{ fontSize: '2rem', fontWeight: 700, color: COLORS.accent, animationDelay: '0.6s', opacity: 0 }}>
-                  {Math.round(totalKgSaved) || 342}
-                </span>
-                <span style={{ fontSize: '0.9rem', color: '#8b949e' }}>kg</span>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.25rem 0.6rem', borderRadius: '9999px', background: '#0f2a1e', color: COLORS.accent, marginLeft: '0.5rem' }}>
-                  +18% vs last month
-                </span>
+            <div className="grid grid-cols-1 md:grid-cols-[1.2fr_1fr] gap-6">
+              <div style={cardStyle}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem' }}>Active Listings</h3>
+                {listings.filter(l => l.status === 'available').length === 0 ? (
+                  <p style={{ fontSize: '0.85rem', color: '#8b949e', textAlign: 'center', padding: '2rem' }}>No active listings</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {listings.filter(l => l.status === 'available').slice(0, 4).map(l => (
+                      <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: COLORS.pageBg, borderRadius: '0.5rem', border: `1px solid ${COLORS.cardBorder}` }}>
+                        <span style={{ fontSize: '1.2rem' }}>{foodEmoji(l.foodType)}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{l.title}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#8b949e' }}>{l.quantity} {l.unit} • {timeAgo(l.createdAt)}</div>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '4px', background: `${COLORS.accent}1a`, color: COLORS.accent }}>{l.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={cardStyle}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.25rem' }}>Category Mix</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {categoryBreakdown.slice(0, 4).map((cat, i) => (
+                    <div key={cat.key}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
+                        <span>{cat.label}</span>
+                        <span>{cat.pct}%</span>
+                      </div>
+                      <div style={{ height: 4, background: COLORS.cardBorder, borderRadius: 2 }}>
+                        <div style={{ height: '100%', width: `${cat.pct}%`, background: barColors[i], borderRadius: 2 }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* ───── Bottom Row ───── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-          {/* Impact Score */}
-          <div className="animate-fade-in" style={{ ...cardStyle, animationDelay: '0.35s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Impact score</h2>
-              <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '0.3rem 0.75rem', borderRadius: '9999px', background: `${COLORS.accent}1a`, color: COLORS.accent, border: `1px solid ${COLORS.accent}33` }}>
-                Level {level} — {levelLabels[level]}
-              </span>
+        {activeTab === 'listings' && (
+          <div className="animate-fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>My Donation Listings</h1>
+              <Link href="/donor/create-listing" style={{ background: COLORS.accent, color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: '0.5rem', fontWeight: 600, fontSize: '0.85rem' }}>
+                Create New Listing
+              </Link>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.75rem' }}>
-              {/* Circular ring */}
-              <div style={{ position: 'relative', width: 88, height: 88, flexShrink: 0 }}>
-                <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', transform: 'rotate(-90deg)' }}>
-                  <circle cx="50" cy="50" r="42" fill="none" stroke={COLORS.cardBorder} strokeWidth="5" />
-                  <circle cx="50" cy="50" r="42" fill="none" stroke={COLORS.accent} strokeWidth="5"
-                    strokeDasharray={`${impactScore * 2.64} ${264 - impactScore * 2.64}`}
-                    strokeLinecap="round" style={{ animation: 'scoreRing 1.2s ease-out forwards' }}
-                  />
-                </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                  <span className="animate-countUp" style={{ fontSize: '1.6rem', fontWeight: 700, opacity: 0, animationDelay: '0.5s' }}>{impactScore}</span>
-                  <span style={{ fontSize: '0.65rem', color: '#8b949e' }}>score</span>
+            <div style={cardStyle}>
+              {listings.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '4rem' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🥗</div>
+                  <h3 style={{ fontWeight: 600 }}>No donations yet</h3>
+                  <p style={{ color: '#8b949e', fontSize: '0.85rem' }}>Start by creating your first food listing.</p>
                 </div>
-              </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${COLORS.cardBorder}`, textAlign: 'left' }}>
+                        <th style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: '#8b949e' }}>Item</th>
+                        <th style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: '#8b949e' }}>Status</th>
+                        <th style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: '#8b949e' }}>Date</th>
+                        <th style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: '#8b949e', textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {listings.map(l => (
+                        <tr key={l.id} style={{ borderBottom: `1px solid ${COLORS.cardBorder}44` }}>
+                          <td style={{ padding: '1rem 0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                              <span>{foodEmoji(l.foodType)}</span>
+                              <div>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{l.title}</div>
+                                <div style={{ fontSize: '0.75rem', color: '#8b949e' }}>{l.quantity} {l.unit}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: '1rem 0.5rem' }}>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', background: l.status === 'delivered' ? `${COLORS.accent}1a` : `${COLORS.amber}1a`, color: l.status === 'delivered' ? COLORS.accent : COLORS.amber }}>
+                              {l.status.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{ padding: '1rem 0.5rem', fontSize: '0.8rem', color: '#8b949e' }}>{new Date(l.createdAt).toLocaleDateString()}</td>
+                          <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
+                            <button style={{ background: 'transparent', border: 'none', color: COLORS.accent, fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}>Manage</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-              {/* Stats */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+        {activeTab === 'analytics' && (
+          <div className="animate-fade-in">
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '2rem' }}>Impact Tracking</h1>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {[
+                { label: 'Est. People Fed', val: donations * 8, color: COLORS.accent },
+                { label: 'Food Safe (kg)', val: Math.round(totalKgSaved), color: '#3b82f6' },
+                { label: 'CO2 Prevented', val: `${Math.round(totalKgSaved * 2.5)} kg`, color: COLORS.amber },
+              ].map((s, i) => (
+                <div key={i} style={cardStyle}>
+                  <div style={{ fontSize: '0.75rem', color: '#8b949e', marginBottom: '0.5rem' }}>{s.label}</div>
+                  <div style={{ fontSize: '2rem', fontWeight: 700, color: s.color }}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+            <div style={cardStyle}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.5rem' }}>Donation Trends</h3>
+              <div style={{ height: 200, background: 'linear-gradient(180deg, #1d9e7511 0%, #0d1117 100%)', borderRadius: '0.75rem', border: `1px solid ${COLORS.cardBorder}`, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', padding: '2rem 1rem 1rem 1rem' }}>
                 {[
-                  { label: 'Donations', value: donations },
-                  { label: 'Rating', value: <>{rating} <FiStar size={12} style={{ display: 'inline', color: COLORS.amber, verticalAlign: '-1px' }} /></> },
-                  { label: 'Communities served', value: 7 },
-                ].map((row, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#8b949e' }}>{row.label}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>{row.value}</span>
+                  { day: 'Mon', val: 42 }, { day: 'Tue', val: 65 }, { day: 'Wed', val: 45 }, 
+                  { day: 'Thu', val: 82 }, { day: 'Fri', val: 58 }, { day: 'Sat', val: 94 }, { day: 'Sun', val: 75 }
+                ].map((item, i) => (
+                  <div key={i} style={{ width: '10%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', gap: '0.5rem', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: COLORS.accent }}>{item.val}</span>
+                    <div style={{ width: '100%', height: `${item.val}%`, background: COLORS.accent, borderRadius: '4px 4px 0 0', opacity: 0.6 + (i * 0.05), boxShadow: `0 0 10px ${COLORS.accent}22` }} />
+                    <span style={{ fontSize: '0.6rem', color: '#8b949e', fontWeight: 600, marginTop: '0.25rem' }}>{item.day}</span>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Level motivator */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: `1px solid ${COLORS.cardBorder}` }}>
-              <FiStar size={14} style={{ color: COLORS.amber }} />
-              <span style={{ fontSize: '0.8rem', color: '#8b949e' }}>
-                {toNextLevel > 0 ? <>{toNextLevel} more donations to reach <span style={{ color: COLORS.accent, fontWeight: 600 }}>Level {level + 1}</span></> : <>You've reached the highest level! 🏆</>}
-              </span>
-            </div>
           </div>
+        )}
 
-          {/* Live Activity Feed */}
-          <div className="animate-fade-in" style={{ ...cardStyle, animationDelay: '0.4s' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Live activity feed</h2>
-              <div className="pulse-dot" style={{ width: 8, height: 8 }} />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {activities.slice(0, 4).map((act, i) => {
-                const f = feedIcons[act.type] || feedIcons.update;
-                return (
-                  <div key={i} className="animate-slideIn" style={{
-                    display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                    padding: '0.75rem 0', borderBottom: i < 3 ? `1px solid ${COLORS.cardBorder}44` : 'none',
-                    animationDelay: `${i * 0.1}s`, opacity: 0,
-                  }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '0.5rem', background: f.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: f.color, flexShrink: 0, marginTop: 2 }}>
-                      {f.icon}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: '0.85rem', color: '#c9d1d9', lineHeight: 1.4 }}>{act.message}</p>
-                      <p style={{ fontSize: '0.75rem', color: '#484f58', marginTop: '0.25rem' }}>{timeAgo(act.time)}</p>
-                    </div>
+        {activeTab === 'settings' && (
+          <div className="animate-fade-in" style={{ maxWidth: 600 }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '2rem' }}>Settings</h1>
+            <div style={cardStyle}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.5rem' }}>Donor Profile</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {[
+                  { label: 'Full Name', val: user?.name },
+                  { label: 'Organization Name', val: user?.orgName },
+                  { label: 'Email Address', val: user?.email },
+                ].map((f, i) => (
+                  <div key={i}>
+                    <p style={{ fontSize: '0.75rem', color: '#8b949e', marginBottom: '0.4rem' }}>{f.label}</p>
+                    <input readOnly value={f.val || ''} style={{ width: '100%', background: COLORS.pageBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: '0.5rem', padding: '0.75rem', color: '#fff', fontSize: '0.85rem' }} />
                   </div>
-                );
-              })}
+                ))}
+              </div>
+              <button style={{ marginTop: '2rem', background: COLORS.accent, color: '#fff', border: 'none', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', fontWeight: 600, width: '100%' }}>Update Profile</button>
             </div>
           </div>
-        </div>
-
-      </div>
+        )}
+      </main>
     </div>
   );
 }
