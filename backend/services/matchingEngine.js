@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 /**
  * Smart Matching Engine
  * Scores receivers by: distance (40%) + urgency (35%) + demand fairness (25%)
@@ -107,13 +109,40 @@ class MatchingEngine {
    * Find and rank best receivers for a food listing
    */
   static async findBestMatches(listing, receivers, limit = 10) {
+    let aiPredictions = null;
+
+    // Optional: Call AI Model for real-time demand insights
+    const ML_API_URL = process.env.ML_API_URL;
+    if (ML_API_URL) {
+      try {
+        const response = await axios.post(`${ML_API_URL}/predict`, {
+          food_type: listing.foodType,
+          area: listing.pickupAddress, // Or use coordinates if model updated
+          hours_to_expiry: Math.max(0, (new Date(listing.expiryTime) - new Date()) / 3600000),
+          temperature: 30.0, // Default or from weather API
+          quantity: listing.quantity
+        });
+        aiPredictions = response.data;
+      } catch (error) {
+        console.warn('MatchingEngine: AI Service unavailable, falling back to local scoring.', error.message);
+      }
+    }
+
     const scoredReceivers = receivers
       .filter(r => r.latitude && r.longitude && r.isActive)
       .map(receiver => {
         const scores = this.calculateMatchScore(listing, receiver);
+        
+        // Boost priority if AI detects high demand or critical urgency
+        if (aiPredictions) {
+          if (aiPredictions.urgency?.label === 'Critical') scores.compositeScore += 10;
+          if (aiPredictions.spoilage_risk === 'High') scores.compositeScore += 5;
+        }
+
         return {
           receiver,
           ...scores,
+          aiInsight: aiPredictions,
         };
       })
       .filter(r => r.distanceKm <= 50) // Max 50km radius
