@@ -45,7 +45,7 @@ const authLimiter = rateLimit({
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: true, // This allows any website to talk to your API (fixes the Network Error)
   credentials: true,
 }));
 app.use(express.json({ limit: '5mb' })); // Reduced limit for production
