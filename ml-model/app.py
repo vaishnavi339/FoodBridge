@@ -137,3 +137,13 @@ def predict():
 if __name__ == '__main__':
     # Used only for local development. Render uses Gunicorn.
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
+
+@app.route('/')
+def home():
+    return jsonify({
+        "message": "FoodBridge API is running 🚀",
+        "routes": {
+            "/health": "Check server status",
+            "/predict": "POST request for prediction"
+        }
+    })
