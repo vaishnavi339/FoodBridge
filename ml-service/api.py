@@ -6,11 +6,21 @@ app = Flask(__name__)
 CORS(app)
 
 BASE = os.path.join(os.path.dirname(__file__), 'models')
-m_demand  = pickle.load(open(f'{BASE}/model_demand.pkl','rb'))
-m_claim   = pickle.load(open(f'{BASE}/model_claim.pkl','rb'))
-le_zone   = pickle.load(open(f'{BASE}/zone_encoder.pkl','rb'))
-le_cat    = pickle.load(open(f'{BASE}/cat_encoder.pkl','rb'))
-meta      = json.load(open(f'{BASE}/model_metadata.json'))
+print(f"DEBUG: Loading models from {BASE}")
+
+try:
+    m_demand  = pickle.load(open(f'{BASE}/model_demand.pkl','rb'))
+    m_claim   = pickle.load(open(f'{BASE}/model_claim.pkl','rb'))
+    le_zone   = pickle.load(open(f'{BASE}/zone_encoder.pkl','rb'))
+    le_cat    = pickle.load(open(f'{BASE}/cat_encoder.pkl','rb'))
+    meta      = json.load(open(f'{BASE}/model_metadata.json'))
+    print("DEBUG: All models loaded successfully")
+except Exception as e:
+    print(f"CRITICAL ERROR during model loading: {str(e)}")
+    print(f"Current directory contents: {os.listdir('.')}")
+    if os.path.exists('models'):
+        print(f"Models directory contents: {os.listdir('models')}")
+    raise e
 
 FEAT_REG = ['zone_enc','cat_enc','day_of_week','hour','month',
             'is_weekend','is_evening','is_morning',
