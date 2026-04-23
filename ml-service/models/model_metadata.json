@@ -1,0 +1,29 @@
+{
+  "demand_model": {
+    "type": "RandomForestRegressor",
+    "mae_kg": 4.08,
+    "r2": 0.3337
+  },
+  "claim_model": {
+    "type": "GradientBoostingClassifier",
+    "accuracy": 0.595
+  },
+  "zones": [
+    "Central Delhi",
+    "Dwarka",
+    "East Delhi",
+    "Gurgaon",
+    "Noida",
+    "North Delhi",
+    "South Delhi",
+    "West Delhi"
+  ],
+  "categories": [
+    "Bakery",
+    "Cooked Meals",
+    "Dairy",
+    "Fruits & Vegetables",
+    "Packaged Goods",
+    "Rice & Grains"
+  ]
+}

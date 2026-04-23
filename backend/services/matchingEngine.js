@@ -79,7 +79,7 @@ class MatchingEngine {
   /**
    * Calculate composite match score for a receiver
    */
-  static calculateMatchScore(listing, receiver) {
+  static calculateMatchScore(listing, receiver, aiBoost = 0) {
     const distance = this.haversineDistance(
       listing.latitude, listing.longitude,
       receiver.latitude, receiver.longitude
@@ -89,11 +89,14 @@ class MatchingEngine {
     const urgencyScore = this.calculateUrgencyScore(listing.expiryTime);
     const demandScore = this.calculateDemandScore(receiver);
 
-    // Weighted composite score
+    // Weighted composite score with AI boost (10% weight)
+    // Formula: (distance * 0.40) + (urgency * 0.35) + (demand * 0.25) + (aiBoost * 10)
+    // Note: aiBoost from ML service is 0-1, so we scale it by 10 to fit the 100-point scale
     const compositeScore = (
       (distanceScore * 0.40) +
       (urgencyScore * 0.35) +
-      (demandScore * 0.25)
+      (demandScore * 0.25) +
+      (aiBoost * 10)
     );
 
     return {
@@ -102,47 +105,64 @@ class MatchingEngine {
       urgencyScore: Math.round(urgencyScore * 100) / 100,
       demandScore: Math.round(demandScore * 100) / 100,
       distanceKm: Math.round(distance * 100) / 100,
+      aiBoost: Math.round(aiBoost * 100) / 100,
     };
+  }
+
+  /**
+   * Get AI Boost score from ML Service
+   */
+  static async getAIBoost(listing) {
+    const zones = ['North Delhi', 'South Delhi', 'East Delhi', 'West Delhi', 'Central Delhi', 'Noida', 'Gurgaon', 'Dwarka'];
+    let zone = 'Central Delhi';
+    for (const z of zones) {
+      if (listing.pickupAddress?.includes(z)) {
+        zone = z;
+        break;
+      }
+    }
+
+    const foodCategoryMap = {
+      'cooked': 'Cooked Meals',
+      'bakery': 'Bakery',
+      'fruits_vegetables': 'Fruits & Vegetables',
+      'packaged': 'Packaged Goods',
+      'dairy': 'Dairy',
+      'raw': 'Rice & Grains',
+    };
+    const foodCategory = foodCategoryMap[listing.foodType] || 'Cooked Meals';
+
+    try {
+      const mlUrl = process.env.ML_API_URL || 'http://localhost:5001';
+      const response = await axios.post(`${mlUrl}/predict/full`, {
+        zone,
+        food_category: foodCategory,
+        hour: new Date().getHours(),
+        day_of_week: new Date().getDay(),
+        month: new Date().getMonth() + 1
+      });
+      return response.data.ai_boost_score || 0;
+    } catch (err) {
+      console.warn('MatchingEngine: ML service fallback (ai_boost = 0)');
+      return 0;
+    }
   }
 
   /**
    * Find and rank best receivers for a food listing
    */
   static async findBestMatches(listing, receivers, limit = 10) {
-    let aiPredictions = null;
-
-    // Optional: Call AI Model for real-time demand insights
-    const ML_API_URL = process.env.ML_API_URL;
-    if (ML_API_URL) {
-      try {
-        const response = await axios.post(`${ML_API_URL}/predict`, {
-          food_type: listing.foodType,
-          area: listing.pickupAddress, // Or use coordinates if model updated
-          hours_to_expiry: Math.max(0, (new Date(listing.expiryTime) - new Date()) / 3600000),
-          temperature: 30.0, // Default or from weather API
-          quantity: listing.quantity
-        });
-        aiPredictions = response.data;
-      } catch (error) {
-        console.warn('MatchingEngine: AI Service unavailable, falling back to local scoring.', error.message);
-      }
-    }
+    const aiBoost = await this.getAIBoost(listing);
 
     const scoredReceivers = receivers
       .filter(r => r.latitude && r.longitude && r.isActive)
       .map(receiver => {
-        const scores = this.calculateMatchScore(listing, receiver);
+        const scores = this.calculateMatchScore(listing, receiver, aiBoost);
         
-        // Boost priority if AI detects high demand or critical urgency
-        if (aiPredictions) {
-          if (aiPredictions.urgency?.label === 'Critical') scores.compositeScore += 10;
-          if (aiPredictions.spoilage_risk === 'High') scores.compositeScore += 5;
-        }
-
         return {
           receiver,
           ...scores,
-          aiInsight: aiPredictions,
+          aiInsight: aiBoost > 0 ? { ai_boost_score: aiBoost } : null,
         };
       })
       .filter(r => r.distanceKm <= 50) // Max 50km radius

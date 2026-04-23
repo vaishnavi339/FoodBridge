@@ -61,6 +61,7 @@ export default function AdminDashboard() {
   const [userTab, setUserTab] = useState('donors');
   const [matchSuggestions, setMatchSuggestions] = useState([]);
   const [matchLoading, setMatchLoading] = useState(false);
+  const [mlStats, setMlStats] = useState(null);
   const [activeAlerts, setActiveAlerts] = useState([
     { id: 1, type: 'critical', icon: <FiAlertTriangle size={14} />, title: '2 listings expiring with no match', desc: 'Dairy products & fresh salad need immediate attention', color: C.red, action: 'listings' },
     { id: 2, type: 'warning', icon: <FiBell size={14} />, title: '3 NGOs inactive for 7+ days', desc: 'Prayas Trust, Green Earth, Hope Foundation', color: C.amber, action: 'users' },
@@ -115,14 +116,16 @@ export default function AdminDashboard() {
 
   const fetchAll = async () => {
     try {
-      const [sRes, lRes, uRes] = await Promise.all([
+      const [sRes, lRes, uRes, mlRes] = await Promise.all([
         api.get('/admin/stats').catch(() => ({ data: {} })),
         api.get('/listings?status=').catch(() => ({ data: { listings: [] } })),
         api.get('/admin/users').catch(() => ({ data: { users: [] } })),
+        fetch(`${process.env.NEXT_PUBLIC_ML_API_URL || 'http://localhost:5001'}/health`).then(r => r.json()).catch(() => null),
       ]);
       setStats(sRes.data);
       setListings(lRes.data.listings || []);
       setUsers(uRes.data.users || []);
+      setMlStats(mlRes);
       setLastUpdated(Date.now());
       setTimeSinceUpdate(0);
     } catch (e) { console.error(e); }
@@ -254,6 +257,13 @@ export default function AdminDashboard() {
               { label: 'Deliveries today', value: deliveriesToday, color: C.accent, badge: '+3 vs yesterday' },
               { label: 'Waste prevented', value: `${wastePercent}%`, color: C.accent, ring: true },
               { label: 'NGOs active', value: `${activeNGOs}`, unit: `/ ${totalNGOs}`, color: C.amber },
+              { 
+                label: 'AI Model Status', 
+                value: mlStats ? 'Live' : 'Offline', 
+                color: mlStats ? C.accent : C.red,
+                isML: true,
+                live: !!mlStats
+              },
             ].map((kpi, i) => (
               <div key={i} className="animate-fade-in" style={{ ...cd, animationDelay: `${i * 0.06}s` }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = `${kpi.color}66`}
@@ -262,7 +272,14 @@ export default function AdminDashboard() {
                 <p style={{ fontSize: '0.7rem', color: C.muted, marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{kpi.label}</p>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-                    <span className="animate-countUp" style={{ fontSize: '1.5rem', fontWeight: 700, color: kpi.color, opacity: 0, animationDelay: `${0.2 + i * 0.08}s` }}>{kpi.value}</span>
+                    {kpi.isML && mlStats ? (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.7rem', color: C.text, fontWeight: 600 }}>MAE: {mlStats.metrics.demand_model.mae_kg} kg</span>
+                        <span style={{ fontSize: '0.7rem', color: C.text, fontWeight: 600 }}>Acc: {(mlStats.metrics.claim_model.accuracy * 100).toFixed(1)}%</span>
+                      </div>
+                    ) : (
+                      <span className="animate-countUp" style={{ fontSize: '1.5rem', fontWeight: 700, color: kpi.color, opacity: 0, animationDelay: `${0.2 + i * 0.08}s` }}>{kpi.value}</span>
+                    )}
                     {kpi.unit && <span style={{ fontSize: '0.75rem', color: C.muted }}>{kpi.unit}</span>}
                     {kpi.live && <div className="pulse-dot" style={{ width: 8, height: 8, marginLeft: 6 }} />}
                   </div>

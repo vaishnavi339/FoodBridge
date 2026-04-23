@@ -1,0 +1,16 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.22.140.156:3000
+✓ Ready in 1310ms
+Creating turbopack project {
+  dir: 'C:\\Users\\vaiss\\OneDrive\\Desktop\\Food_Distribution_Model\\frontend',
+  testMode: true
+}
+
+ GET / 200 in 1186ms (next.js: 493ms, application-code: 693ms)
+✓ Finished writing to filesystem cache in 12.6s
+[?25h

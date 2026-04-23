@@ -1,0 +1,30 @@
+
+> food-distribution-backend@1.0.0 start
+> node server.js
+
+✅ Database synced
+
+╔═══════════════════════════════════════════════╗
+║     🍽️  Smart Food Distribution System        ║
+║     🚀  Backend API is running!               ║
+║     📡  Port: 5000                            ║
+║     🔌  WebSocket: Ready                      ║
+║     💾  Database: SQLite                       ║
+╚═══════════════════════════════════════════════╝
+      
+🔌 User connected: Yash Gupta (donor)
+🔌 User disconnected: Yash Gupta
+🔌 User connected: Yash Gupta (donor)
+🔌 User disconnected: Yash Gupta
+🔌 User connected: Vikram Singh (volunteer)
+[Email Stub] To: rajesh@tajhotel.com, Subject: Food Claimed! 🙌
+[SMS Stub] To: +91-9876543001, Message: Food Claimed! 🙌: Vikram Singh has claimed your listing "Buffet Surplus - Mixed Indian Cuisine".
+[Push Stub] To: c9052481-7f97-4a30-b3a0-4714df09da83, Title: Food Claimed! 🙌
+[Email Stub] To: vikram@volunteer.com, Subject: Claim Confirmed! ✅
+[SMS Stub] To: +91-9876543201, Message: Claim Confirmed! ✅: Your claim for "Buffet Surplus - Mixed Indian Cuisine" has been confirmed. Pick up at: Taj Palace Hotel, Sardar Patel Marg, New Delhi
+[Push Stub] To: 5d72719c-94b2-4a15-96f8-20d27ec60638, Title: Claim Confirmed! ✅
+🔌 User disconnected: Vikram Singh
+🔌 User connected: Meera Foundation (receiver)
+🔌 User disconnected: Meera Foundation
+🔌 User connected: Admin (admin)
+🔌 User disconnected: Admin
