@@ -111,13 +111,13 @@ export default function AdminDashboard() {
     setModalType('history');
   };
 
-  useEffect(() => { fetchAll(); const iv = setInterval(fetchAll, 60000); return () => clearInterval(iv); }, []);
+  useEffect(() => { fetchAll(dateRange); const iv = setInterval(() => fetchAll(dateRange), 60000); return () => clearInterval(iv); }, [dateRange]);
   useEffect(() => { const iv = setInterval(() => setTimeSinceUpdate(Math.round((Date.now() - lastUpdated) / 1000)), 1000); return () => clearInterval(iv); }, [lastUpdated]);
 
-  const fetchAll = async () => {
+  const fetchAll = async (range) => {
     try {
       const [sRes, lRes, uRes, mlRes] = await Promise.all([
-        api.get('/admin/stats').catch(() => ({ data: {} })),
+        api.get('/admin/stats', { params: { range } }).catch(() => ({ data: {} })),
         api.get('/listings?status=').catch(() => ({ data: { listings: [] } })),
         api.get('/admin/users').catch(() => ({ data: { users: [] } })),
         fetch(`${process.env.NEXT_PUBLIC_ML_API_URL || 'http://localhost:5001'}/health`).then(r => r.json()).catch(() => null),
@@ -142,19 +142,25 @@ export default function AdminDashboard() {
   // Demo data
   const wastePercent = 73;
   const sparkData = [12, 18, 14, 22, 19, 25, 20];
-  const totalSaved = stats?.totalFood || listings.reduce((s, l) => s + (l.quantity || 0), 0);
-  const activeNow = listings.filter(l => l.status === 'available').length;
-  const deliveriesToday = stats?.deliveriesToday || 8;
-  const totalNGOs = stats?.totalNGOs || 14;
-  const activeNGOs = stats?.activeNGOs || 9;
+  // Stats derived from backend
+  const totalSaved = stats?.overview?.kgSaved || 0;
+  const activeNow = stats?.overview?.activeListings || 0;
+  const deliveriesToday = stats?.overview?.deliveriesToday || 0;
+  const totalNGOs = stats?.overview?.totalReceivers || 0;
+  const activeNGOs = stats?.overview?.totalReceivers || 0; // Assuming active means total for now or we could add specific active count if needed
 
-  const events = [
-    { time: '2m ago', type: 'Listing created', actor: 'Taj Palace Hotel', detail: 'Buffet Surplus — 25 kg cooked food', status: 'active' },
-    { time: '12m ago', type: 'Claimed', actor: 'Meera Foundation', detail: 'Claimed "Bread & Pastries" from Baker\'s Delight', status: 'claimed' },
-    { time: '34m ago', type: 'Delivered', actor: 'Vikram Singh', detail: 'Delivered dairy products to Hope Shelter', status: 'delivered' },
-    { time: '1h ago', type: 'Expired', actor: 'System', detail: 'Fresh salad listing expired with no claims', status: 'expired' },
-    { time: '2h ago', type: 'User registered', actor: 'Green Earth NGO', detail: 'New NGO registration — pending verification', status: 'pending' },
-  ];
+  const formatTime = (date) => {
+    const diff = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(date).toLocaleDateString();
+  };
+
+  const events = (stats?.activity || []).map(ev => ({
+    ...ev,
+    time: formatTime(ev.time)
+  }));
 
   const typeColors = { 'Listing created': C.accent, 'Claimed': C.blue, 'Delivered': C.accent, 'Expired': C.red, 'User registered': C.amber };
   const statusStyles = { available: { bg: `${C.accent}1a`, color: C.accent, label: 'Active' }, claimed: { bg: `${C.blue}1a`, color: C.blue, label: 'Claimed' }, in_transit: { bg: `${C.amber}1a`, color: C.amber, label: 'In Transit' }, delivered: { bg: `${C.accent}33`, color: C.accent, label: 'Delivered' }, expired: { bg: `${C.red}1a`, color: C.red, label: 'Expired' } };
@@ -254,7 +260,14 @@ export default function AdminDashboard() {
             {[
               { label: 'Total food saved', value: `${totalSaved}`, unit: 'kg', color: C.accent, sparkline: true },
               { label: 'Active listings', value: activeNow, color: C.blue, live: true },
-              { label: 'Deliveries today', value: deliveriesToday, color: C.accent, badge: '+3 vs yesterday' },
+              { 
+                label: 'Deliveries today', 
+                value: deliveriesToday, 
+                color: C.accent, 
+                badge: stats?.overview?.deliveriesToday !== undefined && stats?.overview?.deliveriesYesterday !== undefined
+                  ? `${stats.overview.deliveriesToday - stats.overview.deliveriesYesterday >= 0 ? '+' : ''}${stats.overview.deliveriesToday - stats.overview.deliveriesYesterday} vs yesterday`
+                  : null
+              },
               { label: 'Waste prevented', value: `${wastePercent}%`, color: C.accent, ring: true },
               { label: 'NGOs active', value: `${activeNGOs}`, unit: `/ ${totalNGOs}`, color: C.amber },
               { 

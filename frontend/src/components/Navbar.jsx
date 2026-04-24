@@ -39,6 +39,20 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket || !isAuthenticated) return;
+
+    const handler = (notif) => {
+      setNotifications(prev => [notif, ...prev.slice(0, 4)]);
+      setUnreadCount(prev => prev + 1);
+    };
+
+    socket.on('notification', handler);
+    return () => socket.off('notification', handler);
+  }, [socket, isAuthenticated]);
+
   const fetchNotifications = async () => {
     try {
       const res = await notificationsAPI.getAll({ limit: 5 });

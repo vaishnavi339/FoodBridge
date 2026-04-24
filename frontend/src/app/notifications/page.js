@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSocket } from '@/context/SocketContext';
+import { notificationsAPI } from '@/services/api';
 import { FiShoppingCart, FiTruck, FiAlertTriangle, FiSettings, FiUsers, FiBell, FiCheck, FiStar, FiMoreVertical, FiBellOff, FiFilter } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -18,22 +19,41 @@ const CATEGORIES = [
 
 export default function NotificationCenter() {
   const router = useRouter();
-  const socket = useSocket();
+  const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState('all');
   const [filterMode, setFilterMode] = useState('all'); // all, unread, read
   const [dateRange, setDateRange] = useState('Today');
+  const [loading, setLoading] = useState(true);
   
   const [selectedIds, setSelectedIds] = useState(new Set());
-  
-  // Mock State
-  const [notifications, setNotifications] = useState([
-    { id: 'n1', type: 'claim', title: 'Your listing was claimed', desc: 'Asha NGO claimed your Buffet Surplus listing. Pickup expected within 45m.', date: 'Today', time: '10:42 AM', unread: true },
-    { id: 'n2', type: 'delivery', title: 'Delivery status updated', desc: 'Your Bread delivery is now In Transit. Volunteer: Rahul S.', date: 'Today', time: '09:15 AM', unread: true },
-    { id: 'n3', type: 'urgent', title: 'Listing expiring soon', desc: '20kg Rice expires in under 2 hours and has no match yet.', date: 'Yesterday', time: '04:00 PM', unread: false },
-    { id: 'n4', type: 'match', title: 'Food available near you', desc: '14 kg of Cooked Meals available 2.1 km away. Expiring in 3 hours.', date: 'Yesterday', time: '01:20 PM', unread: false },
-    { id: 'n5', type: 'star', title: 'You received a 5 star rating', desc: 'Spice Route rated your delivery: "Super fast and polite!"', date: 'This week', time: 'Tuesday', unread: false },
-    { id: 'n6', type: 'system', title: 'Weekly impact report ready', desc: 'Check out how many kg of food you helped save this week.', date: 'Earlier', time: 'Oct 12', unread: false },
-  ]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Fetch real notifications
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const res = await notificationsAPI.getAll();
+      // Transform backend notifications to match local UI format if necessary
+      const transformed = res.data.notifications.map(n => ({
+        id: n.id,
+        type: n.type || 'system',
+        title: n.title,
+        desc: n.message,
+        date: new Date(n.createdAt).toLocaleDateString() === new Date().toLocaleDateString() ? 'Today' : 'Earlier',
+        time: new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        unread: !n.read
+      }));
+      setNotifications(transformed);
+    } catch (err) {
+      console.error('Failed to fetch notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
@@ -41,17 +61,29 @@ export default function NotificationCenter() {
   useEffect(() => {
     if (!socket) return;
     const handler = (notif) => {
-      setNotifications(prev => [{...notif, unread: true, date: 'Today', time: 'Just now', id: Date.now().toString()}, ...prev]);
-      toast.success(notif.title, { icon: '🔔', style: {background: '#1D9E75', color: '#fff'} });
-      document.title = `(${unreadCount + 1}) FoodBridge — Notifications`;
+      setNotifications(prev => [{
+        id: notif.id || Date.now().toString(),
+        type: notif.type || 'system',
+        title: notif.title,
+        desc: notif.message,
+        date: 'Today',
+        time: 'Just now',
+        unread: true
+      }, ...prev]);
+      
+      toast.success(notif.title, { 
+        icon: '🔔', 
+        style: {background: '#1D9E75', color: '#fff'} 
+      });
     };
-    socket.on('new_notification', handler);
-    return () => socket.off('new_notification', handler);
-  }, [socket, unreadCount]);
+    
+    socket.on('notification', handler);
+    return () => socket.off('notification', handler);
+  }, [socket]);
 
   const markAsRead = async (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? {...n, unread: false} : n));
-    try { await fetch(`/api/notifications/${id}/read`, { method: 'PUT' }); } catch(e) {}
+    try { await notificationsAPI.markRead(id); } catch(e) {}
   };
 
   const handleNotificationClick = (notification) => {

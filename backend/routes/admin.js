@@ -8,52 +8,109 @@ const router = express.Router();
 // GET /api/admin/stats - Dashboard statistics
 router.get('/stats', auth, roleCheck('admin'), async (req, res) => {
   try {
+    const { range = 'week' } = req.query;
+    
+    // Calculate start date based on range
+    let startDate = new Date(0); // Default to all time
+    const now = new Date();
+    
+    if (range === 'today') {
+      startDate = new Date(now.setHours(0, 0, 0, 0));
+    } else if (range === 'week') {
+      startDate = new Date(now.setDate(now.getDate() - 7));
+    } else if (range === 'month') {
+      startDate = new Date(now.setMonth(now.getMonth() - 1));
+    }
+
     const totalUsers = await User.count();
     const totalDonors = await User.count({ where: { role: 'donor' } });
     const totalReceivers = await User.count({ where: { role: 'receiver' } });
     const totalVolunteers = await User.count({ where: { role: 'volunteer' } });
 
-    const totalListings = await FoodListing.count();
-    const activeListings = await FoodListing.count({ where: { status: 'available' } });
-    const deliveredListings = await FoodListing.count({ where: { status: 'delivered' } });
-    const expiredListings = await FoodListing.count({ where: { status: 'expired' } });
+    // Filtered counts
+    const totalListings = await FoodListing.count({
+      where: { createdAt: { [Op.gte]: startDate } }
+    });
+    const activeListings = await FoodListing.count({ 
+      where: { 
+        status: 'available',
+        createdAt: { [Op.gte]: startDate }
+      } 
+    });
+    const deliveredListings = await FoodListing.count({ 
+      where: { 
+        status: 'delivered',
+        updatedAt: { [Op.gte]: startDate }
+      } 
+    });
+    const expiredListings = await FoodListing.count({ 
+      where: { 
+        status: 'expired',
+        updatedAt: { [Op.gte]: startDate }
+      } 
+    });
 
-    const totalClaims = await Claim.count();
-    const completedDeliveries = await Claim.count({ where: { status: 'delivered' } });
+    const totalClaims = await Claim.count({
+      where: { createdAt: { [Op.gte]: startDate } }
+    });
+    
+    const completedDeliveries = await Claim.count({ 
+      where: { 
+        status: 'delivered',
+        deliveredAt: { [Op.gte]: startDate }
+      } 
+    });
 
-    // Calculate total kg saved (sum of delivered listing quantities)
+    // Calculate total kg saved for the period
     const deliveredFood = await FoodListing.findAll({
-      where: { status: 'delivered' },
+      where: { 
+        status: 'delivered',
+        updatedAt: { [Op.gte]: startDate }
+      },
       attributes: [[fn('SUM', col('quantity')), 'totalQuantity']],
       raw: true,
     });
 
     const kgSaved = deliveredFood[0]?.totalQuantity || 0;
 
-    // Recent activity (last 7 days)
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentListings = await FoodListing.count({
-      where: { createdAt: { [Op.gte]: weekAgo } },
-    });
-    const recentDeliveries = await Claim.count({
-      where: { deliveredAt: { [Op.gte]: weekAgo }, status: 'delivered' },
+    // Deliveries Today specifically for the "Deliveries Today" KPI
+    const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
+    const deliveriesToday = await Claim.count({
+      where: { 
+        deliveredAt: { [Op.gte]: startOfToday },
+        status: 'delivered'
+      }
     });
 
-    // Listings by food type
+    // Deliveries Yesterday
+    const startOfYesterday = new Date(new Date(startOfToday).setDate(startOfToday.getDate() - 1));
+    const deliveriesYesterday = await Claim.count({
+      where: { 
+        deliveredAt: { 
+          [Op.gte]: startOfYesterday,
+          [Op.lt]: startOfToday
+        },
+        status: 'delivered'
+      }
+    });
+
+    // Listings by food type for the period
     const listingsByType = await FoodListing.findAll({
+      where: { createdAt: { [Op.gte]: startDate } },
       attributes: ['foodType', [fn('COUNT', col('id')), 'count']],
       group: ['foodType'],
       raw: true,
     });
 
-    // Listings by status
+    // Listings by status for the period
     const listingsByStatus = await FoodListing.findAll({
+      where: { createdAt: { [Op.gte]: startDate } },
       attributes: ['status', [fn('COUNT', col('id')), 'count']],
       group: ['status'],
       raw: true,
     });
 
-    // Top donors
+    // Top donors (lifetime)
     const topDonors = await User.findAll({
       where: { role: 'donor' },
       attributes: ['id', 'name', 'orgName', 'totalDonations', 'rating'],
@@ -61,7 +118,7 @@ router.get('/stats', auth, roleCheck('admin'), async (req, res) => {
       limit: 10,
     });
 
-    // Top receivers
+    // Top receivers (lifetime)
     const topReceivers = await User.findAll({
       where: { role: 'receiver' },
       attributes: ['id', 'name', 'orgName', 'totalReceived', 'rating'],
@@ -69,7 +126,42 @@ router.get('/stats', auth, roleCheck('admin'), async (req, res) => {
       limit: 10,
     });
 
+    // Fetch real activity feed (last 10 events)
+    const recentListingsList = await FoodListing.findAll({
+      limit: 10,
+      order: [['createdAt', 'DESC']],
+      include: [{ model: User, as: 'donor', attributes: ['orgName'] }],
+    });
+
+    const recentClaimsList = await Claim.findAll({
+      limit: 10,
+      order: [['updatedAt', 'DESC']],
+      include: [
+        { model: User, as: 'receiver', attributes: ['orgName'] },
+        { model: FoodListing, as: 'listing', attributes: ['title'] }
+      ],
+    });
+
+    // Merge and format activity
+    const activity = [
+      ...recentListingsList.map(l => ({
+        time: l.createdAt,
+        type: 'Listing created',
+        actor: l.donor?.orgName || 'Donor',
+        detail: `${l.title} — ${l.quantity} ${l.unit}`,
+        status: 'active'
+      })),
+      ...recentClaimsList.map(c => ({
+        time: c.updatedAt,
+        type: c.status === 'delivered' ? 'Delivered' : 'Claimed',
+        actor: c.receiver?.orgName || 'NGO',
+        detail: `${c.status === 'delivered' ? 'Delivered' : 'Claimed'} "${c.listing?.title}"`,
+        status: c.status
+      }))
+    ].sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
+
     res.json({
+      range,
       overview: {
         totalUsers,
         totalDonors,
@@ -83,11 +175,10 @@ router.get('/stats', auth, roleCheck('admin'), async (req, res) => {
         completedDeliveries,
         kgSaved: Math.round(kgSaved * 100) / 100,
         communitiesServed: totalReceivers,
+        deliveriesToday,
+        deliveriesYesterday,
       },
-      weekly: {
-        recentListings,
-        recentDeliveries,
-      },
+      activity,
       charts: {
         listingsByType,
         listingsByStatus,
