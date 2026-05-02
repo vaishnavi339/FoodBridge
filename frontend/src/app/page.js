@@ -126,7 +126,7 @@ export default function HomePage() {
             <Link href="/signup?role=donor" className="w-full sm:w-auto flex items-center justify-center bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white font-semibold h-[48px] px-[20px] rounded-xl transition-all shadow-lg shadow-[#1D9E75]/20">
               Donate food
             </Link>
-            <Link href="/signup?role=ngo" className="w-full sm:w-auto flex items-center justify-center bg-transparent border border-[#1D9E75] text-[#1D9E75] hover:bg-[#1D9E75]/10 font-semibold h-[48px] px-[20px] rounded-xl transition-all">
+            <Link href="/signup?role=receiver" className="w-full sm:w-auto flex items-center justify-center bg-transparent border border-[#1D9E75] text-[#1D9E75] hover:bg-[#1D9E75]/10 font-semibold h-[48px] px-[20px] rounded-xl transition-all">
               Find food near me
             </Link>
           </div>
@@ -319,7 +319,7 @@ export default function HomePage() {
               </li>
             </ul>
 
-            <Link href="/signup?role=ngo" className="inline-flex bg-[#378ADD] hover:bg-[#378ADD]/90 text-white font-semibold py-3.5 px-6 rounded-xl transition-all shadow-md">
+            <Link href="/signup?role=receiver" className="inline-flex bg-[#378ADD] hover:bg-[#378ADD]/90 text-white font-semibold py-3.5 px-6 rounded-xl transition-all shadow-md">
               Register your NGO
             </Link>
           </div>
@@ -381,7 +381,7 @@ export default function HomePage() {
              <Link href="/signup?role=donor" className="w-full sm:w-auto text-center bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white font-semibold py-3.5 px-6 rounded-xl transition-all shadow-md">
               I want to donate food
             </Link>
-             <Link href="/signup?role=ngo" className="w-full sm:w-auto text-center bg-transparent border border-[#1D9E75] text-[#1D9E75] hover:bg-[#1D9E75]/10 font-semibold py-3.5 px-6 rounded-xl transition-all">
+             <Link href="/signup?role=receiver" className="w-full sm:w-auto text-center bg-transparent border border-[#1D9E75] text-[#1D9E75] hover:bg-[#1D9E75]/10 font-semibold py-3.5 px-6 rounded-xl transition-all">
               I represent an NGO
             </Link>
           </div>
@@ -425,7 +425,7 @@ export default function HomePage() {
               </summary>
               <div className="flex flex-col space-y-3 text-sm text-slate-400 mt-3 pl-2">
                  <a href="/signup?role=donor" className="hover:text-white transition-colors">For Donors</a>
-                 <a href="/signup?role=ngo" className="hover:text-white transition-colors">For NGOs</a>
+                 <a href="/signup?role=receiver" className="hover:text-white transition-colors">For NGOs</a>
                  <a href="/login" className="hover:text-white transition-colors">Volunteer portal</a>
                  <a href="/admin" className="hover:text-white transition-colors mt-4">Admin login</a>
               </div>
@@ -433,7 +433,7 @@ export default function HomePage() {
             <div className="hidden md:flex flex-col space-y-3 text-sm text-slate-400">
                <span className="font-bold text-white mb-1">Platform</span>
                <a href="/signup?role=donor" className="hover:text-white transition-colors">For Donors</a>
-               <a href="/signup?role=ngo" className="hover:text-white transition-colors">For NGOs</a>
+               <a href="/signup?role=receiver" className="hover:text-white transition-colors">For NGOs</a>
                <a href="/login" className="hover:text-white transition-colors">Volunteer portal</a>
                <a href="/admin" className="hover:text-white transition-colors mt-4">Admin login</a>
             </div>

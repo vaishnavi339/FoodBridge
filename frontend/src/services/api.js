@@ -71,6 +71,11 @@ export const notificationsAPI = {
   markAllRead: () => api.put('/notifications/read-all'),
 };
 
+// ========== Partners API ==========
+export const partnersAPI = {
+  getAll: (params) => api.get('/partners', { params }),
+};
+
 // ========== Admin API ==========
 export const adminAPI = {
   getStats: () => api.get('/admin/stats'),

@@ -58,28 +58,39 @@ export default function DonorDashboard() {
 
   const fetchListings = async () => {
     try {
-      const res = await listingsAPI.getAll({ status: '' });
-      const all = res.data.listings;
-      const mine = all.filter(l => l.donor?.id === user?.id || l.donorId === user?.id);
+      // Fetch all listings for this donor using donorId filter
+      const res = await listingsAPI.getAll({ status: '', donorId: user?.id });
+      let mine = res.data.listings || [];
+
+      // Client-side filter as extra safety net
+      if (mine.length === 0 && user?.id) {
+        const all = await listingsAPI.getAll({ status: '' });
+        mine = (all.data.listings || []).filter(
+          l => l.donorId === user?.id || l.donor?.id === user?.id
+        );
+      }
+
       setListings(mine);
-      setAllListings(all);
+      setAllListings(mine);
       setActivities([
         { type: 'claimed', message: 'Meera Foundation claimed your "Buffet Surplus"', time: new Date(Date.now() - 12 * 60000) },
         { type: 'delivered', message: 'Food delivered to Annapurna Kitchen', time: new Date(Date.now() - 45 * 60000) },
         { type: 'transit', message: 'Packaged snacks are in transit', time: new Date(Date.now() - 90 * 60000) },
         { type: 'expiring', message: 'Dairy Products listing expiring soon', time: new Date(Date.now() - 150 * 60000) },
       ]);
-    } catch (err) { console.error('Failed to fetch listings'); }
+    } catch (err) { console.error('Failed to fetch listings', err); }
     finally { setLoading(false); }
   };
 
+  // Stats — use listing data OR fall back to user profile totals
   const stats = {
-    total: listings.length,
+    total: listings.length > 0 ? listings.length : (user?.totalDonations || 0),
     active: listings.filter(l => l.status === 'available').length,
     claimed: listings.filter(l => ['claimed', 'in_transit'].includes(l.status)).length,
-    delivered: listings.filter(l => l.status === 'delivered').length,
+    delivered: listings.filter(l => l.status === 'delivered').length || 0,
     urgent: listings.filter(l => l.urgencyScore > 70).length,
   };
+
 
   const categoryBreakdown = (() => {
     const cats = {};

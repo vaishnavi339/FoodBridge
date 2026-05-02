@@ -1,24 +1,36 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const SocketContext = createContext(null);
 
 export function SocketProvider({ children }) {
-  const [socket, setSocket] = useState(null);
+  const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
-  const { token, isAuthenticated } = useAuth();
+  const { token } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated || !token) {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
+    // If no token, disconnect any existing socket and stop
+    if (!token) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
         setConnected(false);
       }
       return;
+    }
+
+    // If a socket already exists for this token, don't reconnect
+    if (socketRef.current && socketRef.current.auth?.token === token) {
+      return;
+    }
+
+    // Disconnect previous socket if token changed
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
     }
 
     const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
@@ -27,8 +39,8 @@ export function SocketProvider({ children }) {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
     newSocket.on('connect', () => {
@@ -36,24 +48,42 @@ export function SocketProvider({ children }) {
       setConnected(true);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-      setConnected(false);
+    newSocket.on('disconnect', (reason) => {
+      console.log('🔌 Socket disconnected:', reason);
+      // Only mark offline for non-reconnecting disconnects
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        setConnected(false);
+      }
+    });
+
+    newSocket.on('reconnect', () => {
+      console.log('🔌 Socket reconnected');
+      setConnected(true);
     });
 
     newSocket.on('connect_error', (err) => {
       console.log('Socket connection error:', err.message);
     });
 
-    setSocket(newSocket);
+    socketRef.current = newSocket;
 
     return () => {
-      newSocket.disconnect();
+      // Only cleanup on unmount (token === same), not on re-render
     };
-  }, [isAuthenticated, token]);
+  }, [token]); // Only depend on token string, not isAuthenticated (which changes every render)
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, connected }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected }}>
       {children}
     </SocketContext.Provider>
   );

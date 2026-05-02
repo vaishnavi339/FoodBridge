@@ -121,7 +121,7 @@ export default function SignupWelcome() {
             </div>
 
             <Link 
-              href="/donor/donate" 
+              href="/donor/create-listing" 
               className="block w-full bg-[#1D9E75] hover:bg-[#1D9E75]/90 text-white font-semibold py-4 px-4 rounded-xl transition-all shadow-md mb-4"
             >
               Post your first listing →

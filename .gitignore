@@ -27,3 +27,18 @@ Thumbs.db
 /scratch
 .sqlite
 *.db
+
+# Logs
+*.log
+run-*.log
+run-*.err.log
+backend-run.log
+frontend-run.log
+ml-service-run.log
+ml-service-restart.log
+
+# SQLite database (reset with seed.js)
+backend/database.sqlite
+
+# Scratch files
+ml-service/scratch/

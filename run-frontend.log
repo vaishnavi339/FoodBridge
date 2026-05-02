@@ -1,0 +1,24 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.22.139.138:3000
+- Environments: .env
+✓ Ready in 1277ms
+Creating turbopack project {
+  dir: 'C:\\Users\\vaiss\\OneDrive\\Desktop\\Food_Distribution_Model\\frontend',
+  testMode: true
+}
+
+ GET / 200 in 640ms (next.js: 371ms, application-code: 269ms)
+ GET / 200 in 151ms (next.js: 17ms, application-code: 134ms)
+ GET /signup?role=donor 200 in 190ms (next.js: 130ms, application-code: 60ms)
+ GET /signup/details 200 in 274ms (next.js: 119ms, application-code: 155ms)
+ GET /signup/details 200 in 104ms (next.js: 30ms, application-code: 73ms)
+ GET /register 200 in 158ms (next.js: 116ms, application-code: 43ms)
+ GET /login 200 in 177ms (next.js: 129ms, application-code: 49ms)
+ GET / 200 in 46ms (next.js: 9ms, application-code: 36ms)
+ GET /login 200 in 75ms (next.js: 14ms, application-code: 61ms)
+ GET /admin 200 in 194ms (next.js: 146ms, application-code: 47ms)

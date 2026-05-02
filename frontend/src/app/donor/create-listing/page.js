@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { listingsAPI } from '@/services/api';
-import { FiPackage, FiClock, FiMapPin, FiInfo, FiArrowRight, FiAlertCircle, FiNavigation } from 'react-icons/fi';
+import { FiPackage, FiClock, FiMapPin, FiInfo, FiArrowRight, FiAlertCircle, FiNavigation, FiSearch } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function CreateListingPage() {
@@ -13,6 +13,7 @@ export default function CreateListingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [detectingGPS, setDetectingGPS] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     foodType: '',
@@ -29,12 +30,44 @@ export default function CreateListingPage() {
     specialInstructions: '',
   });
 
-  // Auto-detect location on mount
+  // Auto-detect location on mount only if no profile coords
   useEffect(() => {
     if (!formData.latitude && !formData.longitude) {
       detectLocation();
     }
   }, []);
+
+  // Geocode a typed address → lat/lng using OpenStreetMap Nominatim (free, no key needed)
+  const geocodeAddress = async () => {
+    const addr = formData.pickupAddress.trim();
+    if (!addr) {
+      toast.error('Please enter a pickup address first');
+      return;
+    }
+    setGeocoding(true);
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=in`;
+      const res = await fetch(url, {
+        headers: { 'Accept-Language': 'en', 'User-Agent': 'FoodBridge/1.0' }
+      });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        setFormData(prev => ({
+          ...prev,
+          latitude: parseFloat(lat).toFixed(6),
+          longitude: parseFloat(lon).toFixed(6),
+        }));
+        toast.success(`📍 Found: ${display_name.split(',').slice(0, 2).join(', ')}`);
+      } else {
+        toast.error('Address not found. Try a more specific address or use GPS.');
+      }
+    } catch (err) {
+      toast.error('Geocoding failed. Check your internet connection.');
+    } finally {
+      setGeocoding(false);
+    }
+  };
 
   const detectLocation = () => {
     if (!navigator.geolocation) {
@@ -49,11 +82,10 @@ export default function CreateListingPage() {
           latitude: pos.coords.latitude.toFixed(6),
           longitude: pos.coords.longitude.toFixed(6),
         }));
-        toast.success('Location detected! 📍');
+        toast.success('Live location detected! 📍');
         setDetectingGPS(false);
       },
-      (err) => {
-        console.log('Geolocation denied, using profile location');
+      () => {
         if (user?.latitude && user?.longitude) {
           setFormData(prev => ({
             ...prev,
@@ -207,40 +239,97 @@ export default function CreateListingPage() {
             </div>
           </div>
 
-          {/* Pickup Address */}
+          {/* Pickup Address + Find on Map button */}
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Pickup Address *</label>
-            <div className="relative">
-              <FiMapPin className="absolute left-3 top-3 text-slate-500" size={18} />
-              <input type="text" value={formData.pickupAddress} onChange={e => update('pickupAddress', e.target.value)} className="input-field pl-10" placeholder="Full pickup address" required />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <FiMapPin className="absolute left-3 top-3 text-slate-500" size={18} />
+                <input
+                  type="text"
+                  value={formData.pickupAddress}
+                  onChange={e => update('pickupAddress', e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), geocodeAddress())}
+                  className="input-field pl-10"
+                  placeholder="Type your full address or city name..."
+                  required
+                />
+              </div>
+              <button
+                type="button"
+                onClick={geocodeAddress}
+                disabled={geocoding}
+                title="Auto-fill coordinates from this address"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/40 text-blue-300 hover:bg-blue-500/30 text-xs font-bold transition-all disabled:opacity-50 whitespace-nowrap"
+              >
+                {geocoding ? (
+                  <span className="animate-pulse">Searching...</span>
+                ) : (
+                  <><FiSearch size={13} /> Find on Map</>
+                )}
+              </button>
             </div>
+            <p className="text-[11px] text-slate-500 mt-1.5">
+              Type your address and click <span className="text-blue-400 font-semibold">Find on Map</span> to auto-fill coordinates — or use <span className="text-emerald-400 font-semibold">Live GPS</span> below.
+            </p>
           </div>
 
-          {/* Coordinates */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-slate-300">GPS Coordinates</label>
+          {/* GPS Coordinates — with both options clearly shown */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-semibold text-slate-300">📍 GPS Coordinates</label>
               <button
                 type="button"
                 onClick={detectLocation}
                 disabled={detectingGPS}
-                className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
               >
                 <FiNavigation size={12} className={detectingGPS ? 'animate-pulse' : ''} />
-                {detectingGPS ? 'Detecting...' : 'Detect My Location'}
+                {detectingGPS ? 'Detecting...' : 'Use Live GPS'}
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <input type="number" step="any" value={formData.latitude} onChange={e => update('latitude', e.target.value)} className="input-field" placeholder="Latitude" />
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Latitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formData.latitude}
+                  onChange={e => update('latitude', e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. 28.6139"
+                />
               </div>
               <div>
-                <input type="number" step="any" value={formData.longitude} onChange={e => update('longitude', e.target.value)} className="input-field" placeholder="Longitude" />
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Longitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formData.longitude}
+                  onChange={e => update('longitude', e.target.value)}
+                  className="input-field"
+                  placeholder="e.g. 77.2090"
+                />
               </div>
             </div>
-            {formData.latitude && formData.longitude && (
-              <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                <FiMapPin size={10} /> Location set: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
+
+            {formData.latitude && formData.longitude ? (
+              <p className="text-xs text-emerald-400 flex items-center gap-1.5">
+                <FiMapPin size={11} />
+                Location set: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
+                <a
+                  href={`https://www.google.com/maps?q=${formData.latitude},${formData.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-400 underline ml-2 hover:text-blue-300"
+                >
+                  Verify on map ↗
+                </a>
+              </p>
+            ) : (
+              <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                ⚠️ No location set — type address above and click <strong className="mx-1">Find on Map</strong>, or click <strong className="mx-1">Use Live GPS</strong>.
               </p>
             )}
           </div>
@@ -258,7 +347,7 @@ export default function CreateListingPage() {
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center py-3 text-base">
-            {loading ? 'Publishing...' : <>Publish Listing <FiArrowRight /></>}
+            {loading ? 'Publishing...' : <><span>Publish Listing</span> <FiArrowRight /></>}
           </button>
         </form>
       </div>

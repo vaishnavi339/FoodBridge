@@ -13,6 +13,7 @@ router.get('/', async (req, res) => {
       status = 'available',
       foodType,
       category,
+      donorId,
       lat,
       lng,
       radius = 50,
@@ -27,6 +28,7 @@ router.get('/', async (req, res) => {
     if (status && status.length > 0) where.status = status;
     if (foodType && foodType.length > 0) where.foodType = foodType;
     if (category && category.length > 0) where.category = category;
+    if (donorId && donorId.length > 0) where.donorId = donorId;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 

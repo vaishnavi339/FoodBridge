@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiMapPin, FiCrosshair } from 'react-icons/fi';
+import toast from 'react-hot-toast';
 import Stepper from '../components/Stepper';
 
 const TOP_CITIES = [

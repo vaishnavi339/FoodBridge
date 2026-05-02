@@ -24,7 +24,7 @@ export default function VolunteerDashboard() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Dashboard State
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'history' | 'earnings' | 'settings'
+  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'history' | 'earnings' | 'settings' | 'ai_finder'
   const [isAvailable, setIsAvailable] = useState(true);
   const [vehicle, setVehicle] = useState('Bike');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -161,9 +161,10 @@ export default function VolunteerDashboard() {
 
   const navItems = [
     { id: 'tasks', label: 'Work Feed', icon: <FiTruck /> },
+    { id: 'ai_finder', label: 'AI NGO Finder', icon: <FiStar /> },
     { id: 'history', label: 'My Deliveries', icon: <FiClock /> },
     { id: 'earnings', label: 'Earnings', icon: <FiDollarSign /> },
-    { id: 'settings', label: 'Settings', icon: <FiX /> }, // Using FiX placeholder, will fix with real icons in loop
+    { id: 'settings', label: 'Settings', icon: <FiX /> },
   ];
 
   const getUrgencyColor = (u) => {
@@ -208,6 +209,7 @@ export default function VolunteerDashboard() {
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {[
             { id: 'tasks', label: 'Available Tasks', icon: <FiTruck /> },
+            { id: 'ai_finder', label: 'AI NGO Finder', icon: <FiStar /> },
             { id: 'history', label: 'Delivery History', icon: <FiClock /> },
             { id: 'earnings', label: 'Earnings & Impact', icon: <FiDollarSign /> },
             { id: 'settings', label: 'Profile Settings', icon: <FiCheck /> },
@@ -452,6 +454,10 @@ export default function VolunteerDashboard() {
               </div>
             )}
 
+            {activeTab === 'ai_finder' && (
+              <AINGOFinder COLORS={COLORS} />
+            )}
+
             {activeTab === 'settings' && (
               <div className="max-w-2xl space-y-8">
                 <h1 className="text-2xl font-bold">Profile Settings</h1>
@@ -527,6 +533,141 @@ export default function VolunteerDashboard() {
         </div>
       </div>
 
+    </div>
+  );
+}
+
+function AINGOFinder({ COLORS }) {
+  const [query, setQuery] = useState('');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5001/predict/ngo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("ML Service is offline. Make sure the Python API is running on port 5001.");
+      // Fallback mock for demo if server is down
+      if (query.toLowerCase().includes('mumbai')) {
+        setResult({
+          found: true, city: 'Mumbai', confidence: 0.95,
+          ngos: [
+            { name: "Mumbai Food Bank", address: "Andheri West", contact: "+91-22-12345678", specialty: "Raw Grains" },
+            { name: "Helping Hands", address: "Dharavi", contact: "+91-22-87654321", specialty: "Cooked Meals" }
+          ]
+        });
+      } else {
+        setResult({ found: false, message: "No NGOs found for this query in our ML database." });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl space-y-8 animate-fade-in">
+      <div className="bg-gradient-to-r from-[#1D9E75]/20 to-blue-500/10 p-8 rounded-3xl border border-[#1D9E75]/30">
+        <h1 className="text-3xl font-bold mb-2">AI NGO Locator</h1>
+        <p className="text-slate-400 max-w-2xl">
+          Our machine learning model can identify cities and locate active NGOs. 
+          Try asking: <span className="text-[#1D9E75] italic">"Are there any NGOs in Mumbai?"</span> or simply <span className="text-[#1D9E75] italic">"Delhi"</span>.
+        </p>
+      </div>
+
+      <form onSubmit={handleSearch} className="relative">
+        <input 
+          type="text" 
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Enter city or ask a question..."
+          className="w-full bg-[#161b22] border-2 border-[#21262d] focus:border-[#1D9E75] p-5 rounded-2xl outline-none text-lg transition-all pr-32 shadow-xl"
+        />
+        <button 
+          type="submit" 
+          disabled={loading}
+          className="absolute right-2 top-2 bottom-2 bg-[#1D9E75] text-white px-8 rounded-xl font-bold hover:bg-[#1D9E75]/90 transition-all flex items-center gap-2"
+        >
+          {loading ? 'Thinking...' : 'Ask AI'}
+        </button>
+      </form>
+
+      {result && (
+        <div className="space-y-6 animate-slide-up">
+          {result.found ? (
+            <>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+                    <FiCheck className="text-[#1D9E75]" /> 
+                    Found {result.ngos.length} NGOs for {result.city}
+                  </h2>
+                  {result.note && <p className="text-xs text-slate-400 mt-1">{result.note}</p>}
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase bg-[#21262d] px-3 py-1 rounded-full border border-[#30363d] whitespace-nowrap">
+                  Model Confidence: {Math.round(result.confidence * 100)}%
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.ngos.map((ngo, i) => (
+                  <div key={i} className="bg-[#161b22] border border-[#21262d] p-5 rounded-2xl hover:border-[#1D9E75]/50 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="w-10 h-10 rounded-lg bg-[#1D9E75]/10 flex items-center justify-center text-xl">🏢</div>
+                      <span className="text-[10px] font-bold text-[#1D9E75] bg-[#1D9E75]/10 px-2 py-0.5 rounded-full uppercase">
+                        {ngo.specialty}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-lg mb-1 group-hover:text-[#1D9E75] transition-colors">{ngo.name}</h3>
+                    <p className="text-sm text-slate-500 flex items-center gap-2 mb-3">
+                      <FiMapPin size={12} /> {ngo.address}
+                    </p>
+                    <div className="text-xs font-medium text-slate-400 bg-[#0d1117] p-2 rounded-lg border border-[#21262d]">
+                      Contact: {ngo.contact}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="bg-[#161b22] border border-dashed border-[#e24b4a]/50 p-10 rounded-2xl text-center animate-pulse-subtle">
+              <div className="text-5xl mb-4">🔍</div>
+              <h3 className="text-xl font-bold mb-2">No Specific Match Found</h3>
+              <p className="text-slate-500 mb-6">{result.message}</p>
+              
+              {result.suggestions && (
+                <div className="max-w-md mx-auto text-left bg-[#0d1117] p-6 rounded-2xl border border-[#21262d] mb-6">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 tracking-widest">Suggestions:</h4>
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    {result.suggestions.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <span className="text-[#1D9E75]">•</span> {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <button 
+                onClick={() => window.open(`https://www.google.com/maps/search/NGOs+in+${encodeURIComponent(query)}`)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-500/10 border border-blue-500/50 text-blue-400 font-bold hover:bg-blue-500/20 transition-all"
+              >
+                <FiMapPin /> Search on Google Maps
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

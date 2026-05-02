@@ -1,0 +1,16 @@
+
+> food-distribution-backend@1.0.0 start
+> node server.js
+
+✅ Database synced
+
+╔═══════════════════════════════════════════════╗
+║     🍽️  Smart Food Distribution System        ║
+║     🚀  Backend API is running!               ║
+║     📡  Port: 5000                            ║
+║     🔌  WebSocket: Ready                      ║
+║     💾  Database: SQLite                       ║
+╚═══════════════════════════════════════════════╝
+      
+🔌 User connected: Admin (admin)
+🔌 User disconnected: Admin

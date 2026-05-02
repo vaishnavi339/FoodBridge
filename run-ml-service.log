@@ -1,0 +1,8 @@
+DEBUG: Loading models from C:\Users\vaiss\OneDrive\Desktop\Food_Distribution_Model\ml-service\models
+DEBUG: All models loaded successfully
+ML API running -> http://localhost:5001
+ * Serving Flask app 'api'
+ * Debug mode: on
+DEBUG: Loading models from C:\Users\vaiss\OneDrive\Desktop\Food_Distribution_Model\ml-service\models
+DEBUG: All models loaded successfully
+ML API running -> http://localhost:5001

@@ -143,8 +143,8 @@ router.put('/:id/status', auth, async (req, res) => {
 
     const validTransitions = {
       pending: ['approved', 'rejected', 'cancelled'],
-      approved: ['picked_up', 'cancelled'],
-      picked_up: ['in_transit', 'cancelled'],
+      approved: ['picked_up', 'in_transit', 'cancelled'],
+      picked_up: ['in_transit', 'delivered', 'cancelled'],
       in_transit: ['delivered', 'cancelled'],
     };
 
